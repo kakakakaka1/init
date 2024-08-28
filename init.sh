@@ -13,7 +13,7 @@ echo "修改 SSH 配置..."
 sudo sed -i "s/#Port 22/Port $SSH_PORT/" /etc/ssh/sshd_config
 sudo sed -i "s/#PermitRootLogin yes/PermitRootLogin prohibit-password/" /etc/ssh/sshd_config
 sudo sed -i "s/#PasswordAuthentication yes/PasswordAuthentication no/" /etc/ssh/sshd_config
-
+sudo sed -i "s/PasswordAuthentication yes/PasswordAuthentication no/" /etc/ssh/sshd_config.d/50-cloud-init.conf
 # 添加公钥到 root 用户的 authorized_keys
 echo "配置 root 用户的 SSH 公钥认证..."
 sudo mkdir -p /root/.ssh
