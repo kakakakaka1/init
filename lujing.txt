@@ -1,0 +1,12 @@
+/root/ecs.sh
+/root/gost.sh
+/root/kejilion.sh
+/root/singbox.sh
+/root/tcp.sh
+/root/tools.sh
+/root/.bashrc
+/root/.viminfo
+/root/id_rsa
+/root/.ssh/id_rsa
+/root/.ssh/config
+/etc/firewalld
