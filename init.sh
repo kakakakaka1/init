@@ -176,14 +176,60 @@ echo "===== 步骤 3 完成。 ====="
 
 
 # ==============================================================================
-# 步骤 4: 下载并执行 gost.sh 脚本
+# 步骤 4: 下载并执行 snell.sh 脚本 (原步骤5)
 # ==============================================================================
 echo # 空行
-echo "===== 步骤 4: 下载并执行 gost.sh 脚本 ====="
+echo "===== 步骤 4: 下载并执行 snell.sh 脚本 =====" # 步骤编号更新
+
+SNELL_SCRIPT_URL="https://raw.githubusercontent.com/jinqians/snell.sh/main/snell.sh"
+SNELL_SCRIPT_FILENAME="snell.sh" # 脚本文件名
+SNELL_SCRIPT_LOCAL_PATH="/root/${SNELL_SCRIPT_FILENAME}" # 脚本的本地路径
+# 预设输入：先输入 "1" 然后回车，再输入 "20000" 然后回车，然后回车，然后回车，最后输入 "0" 然后回车
+SNELL_SCRIPT_INPUT_SEQUENCE="1\n20000\n\n\n0\n"
+
+echo "正在从 $SNELL_SCRIPT_URL 下载脚本 '$SNELL_SCRIPT_FILENAME' 到 $SNELL_SCRIPT_LOCAL_PATH ..."
+# 使用 -O 选项确保文件直接保存到指定路径和名称
+if ! wget -q -O "$SNELL_SCRIPT_LOCAL_PATH" "$SNELL_SCRIPT_URL"; then
+    echo "错误：下载脚本 '$SNELL_SCRIPT_FILENAME' 失败。"
+    echo "请检查网络连接或 URL 是否正确。"
+    exit 1
+fi
+echo "脚本 '$SNELL_SCRIPT_FILENAME' 下载成功。"
+echo # 空行
+
+echo "正在为脚本 $SNELL_SCRIPT_LOCAL_PATH 添加执行权限..."
+if ! chmod +x "$SNELL_SCRIPT_LOCAL_PATH"; then
+    echo "错误：为脚本 $SNELL_SCRIPT_LOCAL_PATH 添加执行权限失败。"
+    exit 1
+fi
+echo "执行权限添加成功。"
+echo # 空行
+
+echo "正在执行脚本 $SNELL_SCRIPT_LOCAL_PATH 并自动输入预设序列 ('1' -> '20000' -> Enter -> Enter -> '0')..."
+# 使用 printf 将输入序列通过管道传递给脚本
+# 脚本的输出将直接显示在终端
+if printf "%b" "$SNELL_SCRIPT_INPUT_SEQUENCE" | "$SNELL_SCRIPT_LOCAL_PATH"; then
+    echo "脚本 $SNELL_SCRIPT_LOCAL_PATH 已成功执行 (根据其最终退出状态)。"
+else
+    SNELL_EXEC_EXIT_CODE=$?
+    echo "错误：脚本 $SNELL_SCRIPT_LOCAL_PATH 执行过程中失败或返回了错误状态码 $SNELL_EXEC_EXIT_CODE 。"
+    exit $SNELL_EXEC_EXIT_CODE
+fi
+echo # 空行
+echo "脚本 $SNELL_SCRIPT_LOCAL_PATH 已执行完毕，并保留在原位置 (/root/${SNELL_SCRIPT_FILENAME})。"
+echo "===== 步骤 4 完成。 =====" # 步骤编号更新
+# --- 步骤 4 结束 ---
+
+
+# ==============================================================================
+# 步骤 5: 下载并执行 gost.sh 脚本 (原步骤4)
+# ==============================================================================
+echo # 空行
+echo "===== 步骤 5: 下载并执行 gost.sh 脚本 =====" # 步骤编号更新
 
 GOST_SCRIPT_URL="https://raw.githubusercontent.com/kakakakaka1/init/refs/heads/main/gost.sh"
-GOST_SCRIPT_FILENAME="gost.sh" # 步骤四的脚本特定文件名 (已修改)
-GOST_SCRIPT_LOCAL_PATH="/root/${GOST_SCRIPT_FILENAME}" # 步骤四脚本的本地路径
+GOST_SCRIPT_FILENAME="gost.sh" # 脚本文件名
+GOST_SCRIPT_LOCAL_PATH="/root/${GOST_SCRIPT_FILENAME}" # 脚本的本地路径
 # 预设输入：先输入 "1" 然后回车，再输入 "n" 然后回车
 GOST_SCRIPT_INPUT_SEQUENCE="1\nn\n"
 
@@ -210,64 +256,13 @@ echo "正在执行脚本 $GOST_SCRIPT_LOCAL_PATH 并自动输入预设序列 ('1
 if printf "%b" "$GOST_SCRIPT_INPUT_SEQUENCE" | "$GOST_SCRIPT_LOCAL_PATH"; then
     echo "脚本 $GOST_SCRIPT_LOCAL_PATH 已成功执行 (根据其最终退出状态)。"
 else
-    # $? 会捕获管道中最后一个命令 (即 $GOST_SCRIPT_LOCAL_PATH) 的退出状态
     GOST_EXEC_EXIT_CODE=$?
     echo "错误：脚本 $GOST_SCRIPT_LOCAL_PATH 执行过程中失败或返回了错误状态码 $GOST_EXEC_EXIT_CODE 。"
-    # 即使脚本执行失败，也保留下载的脚本，以便调试
-    exit $GOST_EXEC_EXIT_CODE # 主脚本因步骤四失败而退出
+    exit $GOST_EXEC_EXIT_CODE
 fi
 echo # 空行
 echo "脚本 $GOST_SCRIPT_LOCAL_PATH 已执行完毕，并保留在原位置 (/root/${GOST_SCRIPT_FILENAME})。"
-echo "===== 步骤 4 完成。 ====="
-# --- 步骤 4 结束 ---
-
-
-# ==============================================================================
-# 步骤 5: 下载并执行 snell.sh 脚本
-# ==============================================================================
-echo # 空行
-echo "===== 步骤 5: 下载并执行 snell.sh 脚本 ====="
-
-SNELL_SCRIPT_URL="https://raw.githubusercontent.com/jinqians/snell.sh/main/snell.sh"
-SNELL_SCRIPT_FILENAME="snell.sh" # 步骤五的脚本文件名
-SNELL_SCRIPT_LOCAL_PATH="/root/${SNELL_SCRIPT_FILENAME}" # 步骤五脚本的本地路径
-# 预设输入：先输入 "1" 然后回车，再输入 "20000" 然后回车，然后回车，然后回车，最后输入 "0" 然后回车
-SNELL_SCRIPT_INPUT_SEQUENCE="1\n20000\n\n\n0\n" # 修改: 更新输入序列
-
-echo "正在从 $SNELL_SCRIPT_URL 下载脚本 '$SNELL_SCRIPT_FILENAME' 到 $SNELL_SCRIPT_LOCAL_PATH ..."
-# 使用 -O 选项确保文件直接保存到指定路径和名称
-if ! wget -q -O "$SNELL_SCRIPT_LOCAL_PATH" "$SNELL_SCRIPT_URL"; then
-    echo "错误：下载脚本 '$SNELL_SCRIPT_FILENAME' 失败。"
-    echo "请检查网络连接或 URL 是否正确。"
-    exit 1
-fi
-echo "脚本 '$SNELL_SCRIPT_FILENAME' 下载成功。"
-echo # 空行
-
-echo "正在为脚本 $SNELL_SCRIPT_LOCAL_PATH 添加执行权限..."
-if ! chmod +x "$SNELL_SCRIPT_LOCAL_PATH"; then
-    echo "错误：为脚本 $SNELL_SCRIPT_LOCAL_PATH 添加执行权限失败。"
-    exit 1
-fi
-echo "执行权限添加成功。"
-echo # 空行
-
-echo "正在执行脚本 $SNELL_SCRIPT_LOCAL_PATH 并自动输入预设序列 ('1' -> '20000' -> Enter -> Enter -> '0')..."
-# 使用 printf 将输入序列通过管道传递给脚本
-# 脚本的输出将直接显示在终端
-if printf "%b" "$SNELL_SCRIPT_INPUT_SEQUENCE" | "$SNELL_SCRIPT_LOCAL_PATH"; then
-    echo "脚本 $SNELL_SCRIPT_LOCAL_PATH 已成功执行 (根据其最终退出状态)。"
-    # 移除了之前的 sleep 和 exit 0，脚本将正常继续
-else
-    # $? 会捕获管道中最后一个命令 (即 $SNELL_SCRIPT_LOCAL_PATH) 的退出状态
-    SNELL_EXEC_EXIT_CODE=$?
-    echo "错误：脚本 $SNELL_SCRIPT_LOCAL_PATH 执行过程中失败或返回了错误状态码 $SNELL_EXEC_EXIT_CODE 。"
-    # 即使脚本执行失败，也保留下载的脚本，以便调试
-    exit $SNELL_EXEC_EXIT_CODE # 主脚本因步骤五失败而退出
-fi
-echo # 空行
-echo "脚本 $SNELL_SCRIPT_LOCAL_PATH 已执行完毕，并保留在原位置 (/root/${SNELL_SCRIPT_FILENAME})。"
-echo "===== 步骤 5 完成。 ====="
+echo "===== 步骤 5 完成。 =====" # 步骤编号更新
 # --- 步骤 5 结束 ---
 
 
