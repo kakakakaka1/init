@@ -231,8 +231,8 @@ echo "===== 步骤 5: 下载并执行 snell.sh 脚本 ====="
 SNELL_SCRIPT_URL="https://raw.githubusercontent.com/jinqians/snell.sh/main/snell.sh"
 SNELL_SCRIPT_FILENAME="snell.sh" # 步骤五的脚本文件名
 SNELL_SCRIPT_LOCAL_PATH="/root/${SNELL_SCRIPT_FILENAME}" # 步骤五脚本的本地路径
-# 预设输入：先输入 "1" 然后回车，再输入 "20000" 然后回车
-SNELL_SCRIPT_INPUT_SEQUENCE="1\n20000\n"
+# 预设输入：先输入 "1" 然后回车，再输入 "20000" 然后回车，然后回车，然后回车，最后输入 "0" 然后回车
+SNELL_SCRIPT_INPUT_SEQUENCE="1\n20000\n\n\n0\n" # 修改: 更新输入序列
 
 echo "正在从 $SNELL_SCRIPT_URL 下载脚本 '$SNELL_SCRIPT_FILENAME' 到 $SNELL_SCRIPT_LOCAL_PATH ..."
 # 使用 -O 选项确保文件直接保存到指定路径和名称
@@ -252,11 +252,12 @@ fi
 echo "执行权限添加成功。"
 echo # 空行
 
-echo "正在执行脚本 $SNELL_SCRIPT_LOCAL_PATH 并自动输入预设序列 ('1' then '20000')..."
+echo "正在执行脚本 $SNELL_SCRIPT_LOCAL_PATH 并自动输入预设序列 ('1' -> '20000' -> Enter -> Enter -> '0')..."
 # 使用 printf 将输入序列通过管道传递给脚本
 # 脚本的输出将直接显示在终端
 if printf "%b" "$SNELL_SCRIPT_INPUT_SEQUENCE" | "$SNELL_SCRIPT_LOCAL_PATH"; then
     echo "脚本 $SNELL_SCRIPT_LOCAL_PATH 已成功执行 (根据其最终退出状态)。"
+    # 移除了之前的 sleep 和 exit 0，脚本将正常继续
 else
     # $? 会捕获管道中最后一个命令 (即 $SNELL_SCRIPT_LOCAL_PATH) 的退出状态
     SNELL_EXEC_EXIT_CODE=$?
