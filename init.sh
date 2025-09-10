@@ -184,8 +184,8 @@ echo "===== 步骤 4: 下载并执行 snell.sh 脚本 =====" # 步骤编号更�
 SNELL_SCRIPT_URL="https://raw.githubusercontent.com/jinqians/snell.sh/main/snell.sh"
 SNELL_SCRIPT_FILENAME="snell.sh" # 脚本文件名
 SNELL_SCRIPT_LOCAL_PATH="/root/${SNELL_SCRIPT_FILENAME}" # 脚本的本地路径
-# 预设输入：先输入 "1" 然后回车，再输入 "20000" 然后回车，然后回车，然后回车，最后输入 "0" 然后回车
-SNELL_SCRIPT_INPUT_SEQUENCE="1\n20000\n\n\n0\n"
+# 预设输入：先输入 "1" 然后回车，然后再输入1回车 再输入 "20000" 然后回车，然后回车，然后回车，最后输入 "0" 然后回车
+SNELL_SCRIPT_INPUT_SEQUENCE="1\n1\n20000\n\n\n0\n"
 
 echo "正在从 $SNELL_SCRIPT_URL 下载脚本 '$SNELL_SCRIPT_FILENAME' 到 $SNELL_SCRIPT_LOCAL_PATH ..."
 # 使用 -O 选项确保文件直接保存到指定路径和名称
@@ -205,7 +205,7 @@ fi
 echo "执行权限添加成功。"
 echo # 空行
 
-echo "正在执行脚本 $SNELL_SCRIPT_LOCAL_PATH 并自动输入预设序列 ('1' -> '20000' -> Enter -> Enter -> '0')..."
+echo "正在执行脚本 $SNELL_SCRIPT_LOCAL_PATH 并自动输入预设序列 ('1' -> '1' -> '20000' -> Enter -> Enter -> '0')..."
 # 使用 printf 将输入序列通过管道传递给脚本
 # 脚本的输出将直接显示在终端
 if printf "%b" "$SNELL_SCRIPT_INPUT_SEQUENCE" | "$SNELL_SCRIPT_LOCAL_PATH"; then
