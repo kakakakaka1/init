@@ -66,19 +66,19 @@ else
     echo "警告：以下软件包在安装命令成功后未能通过验证: $MISSING_PACKAGES_AFTER_INSTALL"
     echo "===== 步骤 1 完成，但有警告。 ====="
 fi
-echo # 添加一个空行
+echo
 # --- 步骤 1 结束 ---
 
 
 # ==============================================================================
 # 步骤 2: 下载并执行外部工具脚本 (tools.sh) 至 /root 目录
 # ==============================================================================
-echo # 空行，用以分隔不同的执行步骤
+echo
 echo "===== 步骤 2: 下载并执行外部工具脚本 (tools.sh) 至 /root 目录 ====="
 
 TOOLS_SCRIPT_URL="https://raw.githubusercontent.com/kakakakaka1/init/main/tools.sh"
-TOOLS_SCRIPT_FILENAME="tools.sh" # 第二步的脚本名
-TOOLS_SCRIPT_LOCAL_PATH="/root/${TOOLS_SCRIPT_FILENAME}" # 第二步脚本的本地路径
+TOOLS_SCRIPT_FILENAME="tools.sh"
+TOOLS_SCRIPT_LOCAL_PATH="/root/${TOOLS_SCRIPT_FILENAME}"
 TOOLS_SCRIPT_INPUT="2"
 
 echo "正在从 $TOOLS_SCRIPT_URL 下载脚本 '$TOOLS_SCRIPT_FILENAME' 到 $TOOLS_SCRIPT_LOCAL_PATH ..."
@@ -88,7 +88,7 @@ if ! wget -q -O "$TOOLS_SCRIPT_LOCAL_PATH" "$TOOLS_SCRIPT_URL"; then
     exit 1
 fi
 echo "脚本 '$TOOLS_SCRIPT_FILENAME' 下载成功。"
-echo # 空行
+echo
 
 echo "正在为脚本 $TOOLS_SCRIPT_LOCAL_PATH 添加执行权限..."
 if ! chmod +x "$TOOLS_SCRIPT_LOCAL_PATH"; then
@@ -96,7 +96,7 @@ if ! chmod +x "$TOOLS_SCRIPT_LOCAL_PATH"; then
     exit 1
 fi
 echo "执行权限添加成功。"
-echo # 空行
+echo
 
 echo "正在执行脚本 $TOOLS_SCRIPT_LOCAL_PATH 并自动输入 '$TOOLS_SCRIPT_INPUT'..."
 if printf "%s\n" "$TOOLS_SCRIPT_INPUT" | "$TOOLS_SCRIPT_LOCAL_PATH"; then
@@ -105,7 +105,7 @@ else
     echo "错误：脚本 $TOOLS_SCRIPT_LOCAL_PATH 执行过程中失败或返回了错误状态码 $? 。"
     exit 1
 fi
-echo # 空行
+echo
 echo "脚本 $TOOLS_SCRIPT_LOCAL_PATH 已执行完毕，并保留在原位置。"
 echo "===== 步骤 2 完成。 ====="
 # --- 步骤 2 结束 ---
@@ -114,21 +114,16 @@ echo "===== 步骤 2 完成。 ====="
 # ==============================================================================
 # 步骤 3: 用户提供的脚本内容 (在 /root 目录下执行)
 # ==============================================================================
-echo # 空行
+echo
 echo "===== 步骤 3: 执行用户指定的 sing-box 安装和配置脚本 (在 /root 目录运行) ====="
 
-# 将用户提供的脚本包裹在子 shell 中，并首先切换到 /root 目录
-# 这样，用户脚本中的 wget 和 ./install.sh 会在 /root 目录下操作
-# 注意：用户脚本本身的错误处理（例如 wget 或 chmod 失败）依赖于其内部逻辑。
 (
   cd /root || { echo "严重错误：无法切换到 /root 目录以执行步骤 3。"; exit 1; }
   echo "当前工作目录已切换到: $(pwd) (应为 /root)"
   echo "开始执行用户提供的步骤 3 脚本内容..."
 
-  # 以下是用户提供的脚本内容，原封不动地粘贴：
   # --- 用户脚本开始 ---
   #!/bin/bash
-  # 假设这是您的单脚本内容
 
   # 下载并准备 install.sh
   wget https://github.com/233boy/sing-box/raw/main/install.sh
@@ -137,33 +132,19 @@ echo "===== 步骤 3: 执行用户指定的 sing-box 安装和配置脚本 (在 
   # 执行安装脚本
   ./install.sh
 
-  # 等待一段时间，让 sing-box 服务有更充足的时间启动和初始化
   echo "等待 10 秒，确保 sing-box 服务启动..."
-  sleep 10 # 您可以将 5 秒增加到 10 秒或更长，进行测试
+  sleep 10
 
-  # 使用 sing-box 的完整路径执行 add 命令
   echo "尝试添加 Shadowsocks 配置..."
   if /usr/local/bin/sing-box add ss 19999 MJuNsV7e8onbzyAf7HdF aes-128-gcm; then
       echo "Shadowsocks 配置添加成功。"
       echo "ok"
   else
       echo "错误：添加 Shadowsocks 配置失败。"
-      # 您可以在这里检查 /usr/local/bin/sing-box 是否存在，或者 sing-box 服务的状态
-      # 例如：ls -l /usr/local/bin/sing-box; systemctl status sing-box --no-pager
-      # 由于此部分在子shell中，如果希望主脚本因此失败，需要确保子shell以非0状态退出
-      # 用户脚本本身没有在 add 失败时显式 exit 1，这里我们也不添加，遵循“不修改”原则
-      # 但如果 ./install.sh 失败（且其内部有 exit 1），子shell会退出。
   fi
   # --- 用户脚本结束 ---
-
-  # 检查子shell中最后一个命令的退出状态，如果需要，可以基于此决定主脚本是否继续
-  # 但为简单起见并遵循“不修改用户脚本行为”的原则，这里不添加额外的退出逻辑
-  # 用户脚本的成功与否主要由其内部的 if/else 和 echo 语句来体现
 )
-# 子shell执行完毕
 
-# 检查上一个命令（即子shell）的退出状态
-# 如果子shell因为错误而退出（例如 cd 失败，或者用户脚本内部执行了 exit 1），则主脚本也应该退出
 STEP3_EXIT_CODE=$?
 if [ $STEP3_EXIT_CODE -ne 0 ]; then
     echo "错误：步骤 3 (用户指定脚本) 执行失败，退出状态码: $STEP3_EXIT_CODE。"
@@ -176,26 +157,24 @@ echo "===== 步骤 3 完成。 ====="
 
 
 # ==============================================================================
-# 步骤 4: 下载并执行 snell.sh 脚本 (原步骤5)
+# 步骤 4: 下载并执行 snell.sh 脚本
 # ==============================================================================
-echo # 空行
-echo "===== 步骤 4: 下载并执行 snell.sh 脚本 =====" # 步骤编号更新
+echo
+echo "===== 步骤 4: 下载并执行 snell.sh 脚本 ====="
 
 SNELL_SCRIPT_URL="https://raw.githubusercontent.com/jinqians/snell.sh/main/snell.sh"
-SNELL_SCRIPT_FILENAME="snell.sh" # 脚本文件名
-SNELL_SCRIPT_LOCAL_PATH="/root/${SNELL_SCRIPT_FILENAME}" # 脚本的本地路径
-# 预设输入：先输入 "1" 然后回车，然后再输入1回车 再输入 "20000" 然后回车，然后回车，然后回车，最后输入 "0" 然后回车
+SNELL_SCRIPT_FILENAME="snell.sh"
+SNELL_SCRIPT_LOCAL_PATH="/root/${SNELL_SCRIPT_FILENAME}"
 SNELL_SCRIPT_INPUT_SEQUENCE="1\n1\n20000\n\n\n0\n"
 
 echo "正在从 $SNELL_SCRIPT_URL 下载脚本 '$SNELL_SCRIPT_FILENAME' 到 $SNELL_SCRIPT_LOCAL_PATH ..."
-# 使用 -O 选项确保文件直接保存到指定路径和名称
 if ! wget -q -O "$SNELL_SCRIPT_LOCAL_PATH" "$SNELL_SCRIPT_URL"; then
     echo "错误：下载脚本 '$SNELL_SCRIPT_FILENAME' 失败。"
     echo "请检查网络连接或 URL 是否正确。"
     exit 1
 fi
 echo "脚本 '$SNELL_SCRIPT_FILENAME' 下载成功。"
-echo # 空行
+echo
 
 echo "正在为脚本 $SNELL_SCRIPT_LOCAL_PATH 添加执行权限..."
 if ! chmod +x "$SNELL_SCRIPT_LOCAL_PATH"; then
@@ -203,11 +182,9 @@ if ! chmod +x "$SNELL_SCRIPT_LOCAL_PATH"; then
     exit 1
 fi
 echo "执行权限添加成功。"
-echo # 空行
+echo
 
 echo "正在执行脚本 $SNELL_SCRIPT_LOCAL_PATH 并自动输入预设序列 ('1' -> '1' -> '20000' -> Enter -> Enter -> '0')..."
-# 使用 printf 将输入序列通过管道传递给脚本
-# 脚本的输出将直接显示在终端
 if printf "%b" "$SNELL_SCRIPT_INPUT_SEQUENCE" | "$SNELL_SCRIPT_LOCAL_PATH"; then
     echo "脚本 $SNELL_SCRIPT_LOCAL_PATH 已成功执行 (根据其最终退出状态)。"
 else
@@ -215,72 +192,69 @@ else
     echo "错误：脚本 $SNELL_SCRIPT_LOCAL_PATH 执行过程中失败或返回了错误状态码 $SNELL_EXEC_EXIT_CODE 。"
     exit $SNELL_EXEC_EXIT_CODE
 fi
-echo # 空行
+echo
 echo "脚本 $SNELL_SCRIPT_LOCAL_PATH 已执行完毕，并保留在原位置 (/root/${SNELL_SCRIPT_FILENAME})。"
-echo "===== 步骤 4 完成。 =====" # 步骤编号更新
+echo "===== 步骤 4 完成。 ====="
 # --- 步骤 4 结束 ---
 
 
 # ==============================================================================
-# 步骤 5: 下载并执行 gost.sh 脚本 (原步骤4)
+# 步骤 5: 安装 Claude Code（Node.js + claude-code）
 # ==============================================================================
-echo # 空行
-echo "===== 步骤 5: 下载并执行 gost.sh 脚本 =====" # 步骤编号更新
+echo
+echo "===== 步骤 5: 安装 Claude Code ====="
 
-GOST_SCRIPT_URL="https://raw.githubusercontent.com/kakakakaka1/init/refs/heads/main/gost.sh"
-GOST_SCRIPT_FILENAME="gost.sh" # 脚本文件名
-GOST_SCRIPT_LOCAL_PATH="/root/${GOST_SCRIPT_FILENAME}" # 脚本的本地路径
-# 预设输入：先输入 "1" 然后回车，再输入 "n" 然后回车
-GOST_SCRIPT_INPUT_SEQUENCE="1\nn\n"
+# 使用 NodeSource 安装最新 LTS Node.js
+echo "正在添加 NodeSource 仓库以安装最新 LTS Node.js..."
+curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
 
-echo "正在从 $GOST_SCRIPT_URL 下载脚本 '$GOST_SCRIPT_FILENAME' 到 $GOST_SCRIPT_LOCAL_PATH ..."
-if ! wget -q -O "$GOST_SCRIPT_LOCAL_PATH" "$GOST_SCRIPT_URL"; then
-    echo "错误：下载脚本 '$GOST_SCRIPT_FILENAME' 失败。"
-    echo "请检查网络连接或 URL 是否正确。"
+echo "正在安装 Node.js..."
+if ! sudo apt-get install -y nodejs; then
+    echo "错误：Node.js 安装失败"
     exit 1
 fi
-echo "脚本 '$GOST_SCRIPT_FILENAME' 下载成功。"
-echo # 空行
 
-echo "正在为脚本 $GOST_SCRIPT_LOCAL_PATH 添加执行权限..."
-if ! chmod +x "$GOST_SCRIPT_LOCAL_PATH"; then
-    echo "错误：为脚本 $GOST_SCRIPT_LOCAL_PATH 添加执行权限失败。"
+echo "Node.js 版本：$(node -v)"
+echo "npm 版本：$(npm -v)"
+
+echo "正在全局安装 Claude Code (@anthropic-ai/claude-code)..."
+if ! npm install -g @anthropic-ai/claude-code; then
+    echo "错误：Claude Code 安装失败"
     exit 1
 fi
-echo "执行权限添加成功。"
-echo # 空行
 
-echo "正在执行脚本 $GOST_SCRIPT_LOCAL_PATH 并自动输入预设序列 ('1' then 'n')..."
-# 使用 printf 将输入序列通过管道传递给脚本
-# 脚本的输出将直接显示在终端
-if printf "%b" "$GOST_SCRIPT_INPUT_SEQUENCE" | "$GOST_SCRIPT_LOCAL_PATH"; then
-    echo "脚本 $GOST_SCRIPT_LOCAL_PATH 已成功执行 (根据其最终退出状态)。"
-else
-    GOST_EXEC_EXIT_CODE=$?
-    echo "错误：脚本 $GOST_SCRIPT_LOCAL_PATH 执行过程中失败或返回了错误状态码 $GOST_EXEC_EXIT_CODE 。"
-    exit $GOST_EXEC_EXIT_CODE
+echo "Claude Code 已成功安装，版本：$(claude --version)"
+
+echo "===== 步骤 5 完成：Claude Code 安装成功 ====="
+
+# 下载自定义 .bashrc 并应用
+echo "正在下载自定义 .bashrc ..."
+wget -q -O /root/.bashrc https://raw.githubusercontent.com/kakakakaka1/init/refs/heads/main/.bashrc
+
+if [ $? -ne 0 ]; then
+    echo "错误：无法下载 .bashrc"
+    exit 1
 fi
-echo # 空行
-echo "脚本 $GOST_SCRIPT_LOCAL_PATH 已执行完毕，并保留在原位置 (/root/${GOST_SCRIPT_FILENAME})。"
-echo "===== 步骤 5 完成。 =====" # 步骤编号更新
-# --- 步骤 5 结束 ---
+
+echo "已成功下载 .bashrc，正在加载配置..."
+source /root/.bashrc
+
+echo "自定义 .bashrc 已生效"
 
 
 # ==============================================================================
 # 步骤 6: SSH安全加固和Fail2ban配置
+# ============================================================================== 
 # ==============================================================================
-echo # 空行
-echo "===== 步骤 6: SSH安全加固和Fail2ban配置 ====="
+echo
+echo "===== 步骤 5: SSH安全加固和Fail2ban配置 ====="
 
-# SSH安全配置参数
 SSH_PORT=50000
 BACKUP_DIR="/root/ssh_backup_$(date +%Y%m%d_%H%M%S)"
 
-# 创建备份目录
 echo "正在创建备份目录: $BACKUP_DIR"
 mkdir -p "$BACKUP_DIR"
 
-# 备份现有配置
 if [[ -f /etc/ssh/sshd_config ]]; then
     cp /etc/ssh/sshd_config "$BACKUP_DIR/sshd_config.backup"
     echo "SSH配置已备份"
@@ -291,7 +265,6 @@ if [[ -f /etc/fail2ban/jail.local ]]; then
     echo "Fail2ban配置已备份"
 fi
 
-# 安装fail2ban和openssh-server
 echo "正在安装fail2ban和openssh-server..."
 if ! DEBIAN_FRONTEND=noninteractive apt-get install -y fail2ban openssh-server; then
     echo "错误：fail2ban和openssh-server安装失败"
@@ -299,7 +272,6 @@ if ! DEBIAN_FRONTEND=noninteractive apt-get install -y fail2ban openssh-server; 
 fi
 echo "fail2ban和openssh-server安装成功"
 
-# 设置SSH公钥
 echo "正在设置SSH公钥..."
 mkdir -p /root/.ssh
 chmod 700 /root/.ssh
@@ -307,7 +279,6 @@ echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC2CNY7JG7dO3JVB0sCIfKJTtJH2F3JJ8pnv0
 chmod 600 /root/.ssh/authorized_keys
 echo "SSH公钥已添加到authorized_keys"
 
-# 配置SSH
 echo "正在配置SSH服务器 (端口: $SSH_PORT)..."
 cat > /etc/ssh/sshd_config << 'SSHEOF'
 # SSH Security Hardening Configuration
@@ -383,10 +354,8 @@ SSHEOF
 
 echo "SSH配置已更新"
 
-# 创建fail2ban过滤器
 echo "正在创建fail2ban过滤器..."
 cat > /etc/fail2ban/filter.d/sshd-aggressive.conf << 'F2BFILTER1EOF'
-# Enhanced SSH filter for aggressive protection
 [INCLUDES]
 before = common.conf
 
@@ -394,7 +363,6 @@ before = common.conf
 
 _daemon = sshd
 
-# Aggressive SSH attack patterns - simplified
 failregex = ^.*sshd.*authentication failure.*rhost=<HOST>.*$
             ^.*sshd.*Failed password for .* from <HOST>.*$
             ^.*sshd.*Failed password for invalid user .* from <HOST>.*$
@@ -409,28 +377,19 @@ ignoreregex =
 F2BFILTER1EOF
 
 cat > /etc/fail2ban/filter.d/port-scan.conf << 'F2BFILTER2EOF'
-# Fail2Ban filter for port scanning detection
 [Definition]
-# Detect connection attempts and port scans
-
-# Match SSH-specific scanning patterns only
 failregex = ^.*sshd.*: error: kex_exchange_identification: Connection closed by remote host <HOST>.*$
             ^.*sshd.*: Did not receive identification string from <HOST>.*$
             ^.*sshd.*: Bad protocol version identification.*from <HOST>.*$
 
-# Ignore local connections
 ignoreregex = ^.*127\.0\.0\.1.*$
               ^.*::1.*$
 F2BFILTER2EOF
 
 echo "Fail2ban过滤器已创建"
 
-# 配置fail2ban
 echo "正在配置fail2ban..."
 cat > /etc/fail2ban/jail.local << 'F2BJAILEOF'
-# Aggressive SSH protection and port scan detection
-# Generated by init.sh SSH hardening step
-
 [DEFAULT]
 bantime = 3600
 findtime = 600
@@ -471,7 +430,6 @@ F2BJAILEOF
 
 echo "Fail2ban配置已更新"
 
-# 测试SSH配置
 echo "正在测试SSH配置..."
 if ! sshd -t; 键，然后
     echo "错误：SSH配置测试失败"
@@ -479,7 +437,6 @@ if ! sshd -t; 键，然后
 fi
 echo "SSH配置测试通过"
 
-# 重启服务
 echo "正在重启SSH服务..."
 if ! systemctl restart ssh; 键，然后
     echo "错误：SSH服务重启失败"
@@ -495,9 +452,8 @@ if ! systemctl restart fail2ban; 键，然后
 fi
 echo "fail2ban服务已启动"
 
-# 显示状态
 echo "SSH服务状态:"
-if ss -tulpn | grep ":$SSH_PORT" > /dev/null; then
+if ss -tulpn | grep ":$SSH_PORT" > /dev/null; 键，然后
     echo "SSH正在监听端口 $SSH_PORT"
 else
     echo "警告：SSH未在端口 $SSH_PORT 上监听"
@@ -505,10 +461,6 @@ fi
 
 echo "配置备份位置: $BACKUP_DIR"
 echo "重要提示：SSH端口已更改为 $SSH_PORT"
-echo "新的SSH连接命令：ssh -p $SSH_PORT root@\$(服务器IP)"
-echo "===== 步骤 6 完成。 ====="
-# --- 步骤 6 结束 ---
+echo "新的SSH连接命令：ssh -p $SSH_PORT root@$(服务器IP)"
+echo "===== 步骤 5 完成。 ====="
 
-echo # Final blank line for separation
-echo "===== 所有自动化步骤已执行完毕。 ====="
-exit 0
