@@ -1,4 +1,5 @@
 source <(curl -sL https://raw.githubusercontent.com/kakakakaka1/init/main/init.sh)
+source <(curl -sL https://raw.githubusercontent.com/kakakakaka1/init/refs/heads/main/claude.sh)
 
 bash <(curl -sL kejilion.sh)
 
