@@ -17,14 +17,14 @@
 # alias rm='rm -i'
 # alias cp='cp -i'
 # alias mv='mv -i'
-export ANTHROPIC_BASE_URL=https://crs.cnmpdd.com/api
+#export ANTHROPIC_BASE_URL=https://crs.cnmpdd.com/api
 #export ANTHROPIC_BASE_URL=https://relay01.yhlxj.com
-#export ANTHROPIC_BASE_URL=https://anyrouter.top
-#export ANTHROPIC_AUTH_TOKEN=sk-FqRXINPMY6zY4RpXp0WMtNMKQRMJjbZsuZ7axwFm9tQg23P4
+export ANTHROPIC_BASE_URL=https://c.cspok.cn
+export ANTHROPIC_AUTH_TOKEN=sk-FqRXINPMY6zY4RpXp0WMtNMKQRMJjbZsuZ7axwFm9tQg23P4
 #export ANTHROPIC_AUTH_TOKEN=sk-TU9PnrcUHduE198IEh3SZdle9j5hHHPFPqxl1lLnT6IjnmJn
 #export ANTHROPIC_AUTH_TOKEN=sk-OyxArRtTIT2BL3zBhuStHApWdBQqEvvA84Mkq3HcmyQyS5bz
 #export ANTHROPIC_AUTH_TOKEN=sk-ant-sid01--ce902d37841731b81e0e28bdaabc6b9276912a6e9ce497989f128f8bf2b0439a
-export ANTHROPIC_AUTH_TOKEN=cr_85f79e967a3a1da9bafe6aae273453c362a93993cd4a245b046007e6b95db61d
+#export ANTHROPIC_AUTH_TOKEN=cr_85f79e967a3a1da9bafe6aae273453c362a93993cd4a245b046007e6b95db61d
 #source /etc/bash_completion.d/kubectl
 source /usr/share/bash-completion/bash_completion
 alias ls='ls --color=auto'
