@@ -243,7 +243,7 @@ if [ -f /root/.bashrc ]; then
 fi
 
 # 下载新的 .bashrc
-ewget -q -O /root/.bashrc https://raw.githubusercontent.com/kakakakaka1/init/refs/heads/main/.bashrc
+wget -q -O /root/.bashrc https://raw.githubusercontent.com/kakakakaka1/init/refs/heads/main/.bashrc
 
 if [ $? -ne 0 ]; then
     echo "错误：无法下载新的 .bashrc"
@@ -251,7 +251,7 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "新的 .bashrc 已下载。"
-echo "如需立即生效，请手动执行： source /root/.bashrc "}]}，以避免因交互命令导致会话中断。""
+echo "如需立即生效，请手动执行： source /root/.bashrc (避免因交互命令导致会话中断)"
 
 
 # ==============================================================================
@@ -449,12 +449,17 @@ if ! sshd -t; 键，然后
 fi
 echo "SSH配置测试通过"
 
-echo "正在重启SSH服务..."
-if ! systemctl restart ssh; 键，然后
-    echo "错误：SSH服务重启失败"
-    exit 1
-fi
-echo "SSH服务已重启"
+echo "警告：需要重启SSH服务以应用配置"
+echo "重要：SSH端口已改为 $SSH_PORT，请确保防火墙已开放该端口"
+echo "建议：保持当前SSH连接，新开一个终端测试新端口连接成功后，再执行："
+echo "  systemctl restart ssh"
+echo "如果确认要立即重启SSH（将断开当前连接），请取消下面的注释："
+# if ! systemctl restart ssh; then
+#     echo "错误：SSH服务重启失败"
+#     exit 1
+# fi
+# echo "SSH服务已重启"
+echo "跳过SSH服务重启（避免断开连接）"
 
 echo "正在启动fail2ban服务..."
 systemctl enable fail2ban
@@ -465,7 +470,7 @@ fi
 echo "fail2ban服务已启动"
 
 echo "SSH服务状态:"
-if ss -tulpn | grep ":$SSH_PORT" > /dev/null; 键，然后
+if ss -tulpn | grep ":$SSH_PORT" > /dev/null; then
     echo "SSH正在监听端口 $SSH_PORT"
 else
     echo "警告：SSH未在端口 $SSH_PORT 上监听"
@@ -476,3 +481,15 @@ echo "重要提示：SSH端口已更改为 $SSH_PORT"
 echo "新的SSH连接命令：ssh -p $SSH_PORT root@$(服务器IP)"
 echo "===== 步骤 5 完成。 ====="
 
+# ======================================================================
+# 最终提示
+# ======================================================================
+echo
+echo "===== 所有步骤全部完成 ====="
+echo
+echo "重要提示："
+echo "1. SSH端口已配置为 $SSH_PORT (未重启服务)"
+echo "2. 新的 .bashrc 已下载，使用 'source /root/.bashrc' 生效"
+echo "3. 测试新SSH端口成功后，执行 'systemctl restart ssh' 应用SSH配置"
+echo "4. 新SSH连接命令: ssh -p $SSH_PORT root@<服务器IP>"
+echo
