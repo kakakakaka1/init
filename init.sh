@@ -443,23 +443,27 @@ F2BJAILEOF
 echo "Fail2ban配置已更新"
 
 echo "正在测试SSH配置..."
-if ! sshd -t; 键，然后
+if ! sshd -t; then
     echo "错误：SSH配置测试失败"
     exit 1
 fi
 echo "SSH配置测试通过"
 
-echo "警告：需要重启SSH服务以应用配置"
-echo "重要：SSH端口已改为 $SSH_PORT，请确保防火墙已开放该端口"
-echo "建议：保持当前SSH连接，新开一个终端测试新端口连接成功后，再执行："
-echo "  systemctl restart ssh"
-echo "如果确认要立即重启SSH（将断开当前连接），请取消下面的注释："
-# if ! systemctl restart ssh; then
-#     echo "错误：SSH服务重启失败"
-#     exit 1
-# fi
-# echo "SSH服务已重启"
-echo "跳过SSH服务重启（避免断开连接）"
+echo ""
+echo "=========================================="
+echo "注意：SSH配置已更新但未重启服务"
+echo "=========================================="
+echo "SSH端口已配置为: $SSH_PORT"
+echo "密码登录已禁用，仅允许密钥登录"
+echo ""
+echo "请按以下步骤操作："
+echo "1. 保持当前SSH连接不要关闭"
+echo "2. 确保防火墙已开放端口 $SSH_PORT"
+echo "3. 新开终端测试新端口连接: ssh -p $SSH_PORT root@<服务器IP>"
+echo "4. 确认新端口可以连接后，在当前终端执行:"
+echo "   systemctl restart ssh"
+echo ""
+echo "=========================================="
 
 echo "正在启动fail2ban服务..."
 systemctl enable fail2ban
@@ -470,16 +474,15 @@ fi
 echo "fail2ban服务已启动"
 
 echo "SSH服务状态:"
-if ss -tulpn | grep ":$SSH_PORT" > /dev/null; then
-    echo "SSH正在监听端口 $SSH_PORT"
+if ss -tulpn | grep ":22" > /dev/null; then
+    echo "SSH当前在端口 22 上监听（配置将在重启后改为 $SSH_PORT）"
 else
-    echo "警告：SSH未在端口 $SSH_PORT 上监听"
+    echo "SSH未在默认端口22上监听"
 fi
 
+echo ""
 echo "配置备份位置: $BACKUP_DIR"
-echo "重要提示：SSH端口已更改为 $SSH_PORT"
-echo "新的SSH连接命令：ssh -p $SSH_PORT root@$(服务器IP)"
-echo "===== 步骤 5 完成。 ====="
+echo "===== 步骤 6 完成。 ====="
 
 # ======================================================================
 # 最终提示
@@ -487,9 +490,18 @@ echo "===== 步骤 5 完成。 ====="
 echo
 echo "===== 所有步骤全部完成 ====="
 echo
+echo "================================================"
 echo "重要提示："
-echo "1. SSH端口已配置为 $SSH_PORT (未重启服务)"
-echo "2. 新的 .bashrc 已下载，使用 'source /root/.bashrc' 生效"
-echo "3. 测试新SSH端口成功后，执行 'systemctl restart ssh' 应用SSH配置"
-echo "4. 新SSH连接命令: ssh -p $SSH_PORT root@<服务器IP>"
+echo "================================================"
+echo "1. SSH端口已配置为 $SSH_PORT (配置文件已更新但服务未重启)"
+echo "2. 新的 .bashrc 已下载，执行以下命令生效："
+echo "   source /root/.bashrc"
+echo ""
+echo "3. SSH配置需要手动重启才能生效："
+echo "   - 先确保防火墙开放端口 $SSH_PORT"
+echo "   - 新开终端测试: ssh -p $SSH_PORT root@<服务器IP>"
+echo "   - 确认可以连接后执行: systemctl restart ssh"
+echo ""
+echo "4. 配置备份位置: $BACKUP_DIR"
+echo "================================================"
 echo
