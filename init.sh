@@ -165,7 +165,13 @@ echo "===== 步骤 4: 下载并执行 snell.sh 脚本 ====="
 SNELL_SCRIPT_URL="https://raw.githubusercontent.com/jinqians/snell.sh/main/snell.sh"
 SNELL_SCRIPT_FILENAME="snell.sh"
 SNELL_SCRIPT_LOCAL_PATH="/root/${SNELL_SCRIPT_FILENAME}"
-SNELL_SCRIPT_INPUT_SEQUENCE="1\n1\n20000\n\n\n0\n"
+SNELL_SCRIPT_INPUT_SEQUENCE="1
+2
+20000
+
+
+0
+"
 
 echo "正在从 $SNELL_SCRIPT_URL 下载脚本 '$SNELL_SCRIPT_FILENAME' 到 $SNELL_SCRIPT_LOCAL_PATH ..."
 if ! wget -q -O "$SNELL_SCRIPT_LOCAL_PATH" "$SNELL_SCRIPT_URL"; then
@@ -184,7 +190,7 @@ fi
 echo "执行权限添加成功。"
 echo
 
-echo "正在执行脚本 $SNELL_SCRIPT_LOCAL_PATH 并自动输入预设序列 ('1' -> '1' -> '20000' -> Enter -> Enter -> '0')..."
+echo "正在执行脚本 $SNELL_SCRIPT_LOCAL_PATH 并自动输入预设序列 ('1' -> '2' -> Enter -> '20000' -> Enter -> Enter -> '0')..."
 if printf "%b" "$SNELL_SCRIPT_INPUT_SEQUENCE" | "$SNELL_SCRIPT_LOCAL_PATH"; then
     echo "脚本 $SNELL_SCRIPT_LOCAL_PATH 已成功执行 (根据其最终退出状态)。"
 else
@@ -227,19 +233,25 @@ echo "Claude Code 已成功安装，版本：$(claude --version)"
 
 echo "===== 步骤 5 完成：Claude Code 安装成功 ====="
 
-# 下载自定义 .bashrc 并应用
+# 下载自定义 .bashrc（仅下载，不自动 source）
 echo "正在下载自定义 .bashrc ..."
-wget -q -O /root/.bashrc https://raw.githubusercontent.com/kakakakaka1/init/refs/heads/main/.bashrc
+
+# 先备份原有 .bashrc（如果存在）
+if [ -f /root/.bashrc ]; then
+    cp /root/.bashrc /root/.bashrc.backup_$(date +%Y%m%d_%H%M%S)
+    echo "已备份原有 /root/.bashrc 为 .bashrc.backup_时间戳"
+fi
+
+# 下载新的 .bashrc
+ewget -q -O /root/.bashrc https://raw.githubusercontent.com/kakakakaka1/init/refs/heads/main/.bashrc
 
 if [ $? -ne 0 ]; then
-    echo "错误：无法下载 .bashrc"
+    echo "错误：无法下载新的 .bashrc"
     exit 1
 fi
 
-echo "已成功下载 .bashrc，正在加载配置..."
-source /root/.bashrc
-
-echo "自定义 .bashrc 已生效"
+echo "新的 .bashrc 已下载。"
+echo "如需立即生效，请手动执行： source /root/.bashrc "}]}，以避免因交互命令导致会话中断。""
 
 
 # ==============================================================================
