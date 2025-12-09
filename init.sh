@@ -222,55 +222,10 @@ echo "===== 步骤 4 完成。 =====" # 步骤编号更新
 
 
 # ==============================================================================
-# 步骤 5: 下载并执行 gost.sh 脚本 (原步骤4)
+# 步骤 5: SSH安全加固和Fail2ban配置
 # ==============================================================================
 echo # 空行
-echo "===== 步骤 5: 下载并执行 gost.sh 脚本 =====" # 步骤编号更新
-
-GOST_SCRIPT_URL="https://raw.githubusercontent.com/kakakakaka1/init/refs/heads/main/gost.sh"
-GOST_SCRIPT_FILENAME="gost.sh" # 脚本文件名
-GOST_SCRIPT_LOCAL_PATH="/root/${GOST_SCRIPT_FILENAME}" # 脚本的本地路径
-# 预设输入：先输入 "1" 然后回车，再输入 "n" 然后回车
-GOST_SCRIPT_INPUT_SEQUENCE="1\nn\n"
-
-echo "正在从 $GOST_SCRIPT_URL 下载脚本 '$GOST_SCRIPT_FILENAME' 到 $GOST_SCRIPT_LOCAL_PATH ..."
-if ! wget -q -O "$GOST_SCRIPT_LOCAL_PATH" "$GOST_SCRIPT_URL"; then
-echo "错误：下载脚本 '$GOST_SCRIPT_FILENAME' 失败。"
-echo "请检查网络连接或 URL 是否正确。"
-exit 1
-fi
-echo "脚本 '$GOST_SCRIPT_FILENAME' 下载成功。"
-echo # 空行
-
-echo "正在为脚本 $GOST_SCRIPT_LOCAL_PATH 添加执行权限..."
-if ! chmod +x "$GOST_SCRIPT_LOCAL_PATH"; then
-echo "错误：为脚本 $GOST_SCRIPT_LOCAL_PATH 添加执行权限失败。"
-exit 1
-fi
-echo "执行权限添加成功。"
-echo # 空行
-
-echo "正在执行脚本 $GOST_SCRIPT_LOCAL_PATH 并自动输入预设序列 ('1' then 'n')..."
-# 使用 printf 将输入序列通过管道传递给脚本
-# 脚本的输出将直接显示在终端
-if printf "%b" "$GOST_SCRIPT_INPUT_SEQUENCE" | "$GOST_SCRIPT_LOCAL_PATH"; then
-echo "脚本 $GOST_SCRIPT_LOCAL_PATH 已成功执行 (根据其最终退出状态)。"
-else
-GOST_EXEC_EXIT_CODE=$?
-echo "错误：脚本 $GOST_SCRIPT_LOCAL_PATH 执行过程中失败或返回了错误状态码 $GOST_EXEC_EXIT_CODE 。"
-exit $GOST_EXEC_EXIT_CODE
-fi
-echo # 空行
-echo "脚本 $GOST_SCRIPT_LOCAL_PATH 已执行完毕，并保留在原位置 (/root/${GOST_SCRIPT_FILENAME})。"
-echo "===== 步骤 5 完成。 =====" # 步骤编号更新
-# --- 步骤 5 结束 ---
-
-
-# ==============================================================================
-# 步骤 6: SSH安全加固和Fail2ban配置
-# ==============================================================================
-echo # 空行
-echo "===== 步骤 6: SSH安全加固和Fail2ban配置 ====="
+echo "===== 步骤 5: SSH安全加固和Fail2ban配置 ====="
 
 # SSH安全配置参数
 SSH_PORT=50000
@@ -489,7 +444,7 @@ echo "SSH服务已重启"
 
 echo "正在启动fail2ban服务..."
 systemctl enable fail2ban
-if ! systemctl restart fail2ban; 键，然后
+if ! systemctl restart fail2ban; then
     echo "错误：fail2ban服务启动失败"
     exit 1
 fi
@@ -506,8 +461,8 @@ fi
 echo "配置备份位置: $BACKUP_DIR"
 echo "重要提示：SSH端口已更改为 $SSH_PORT"
 echo "新的SSH连接命令：ssh -p $SSH_PORT root@\$(服务器IP)"
-echo "===== 步骤 6 完成。 ====="
-# --- 步骤 6 结束 ---
+echo "===== 步骤 5 完成。 ====="
+# --- 步骤 5 结束 ---
 
 echo # Final blank line for separation
 echo "===== 所有自动化步骤已执行完毕。 ====="
