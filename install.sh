@@ -479,10 +479,10 @@ CORE_SH="$1"
 cp "$CORE_SH" "${CORE_SH}.backup.$(date +%Y%m%d_%H%M%S)"
 
 # Inject sync code after "add ${@:2}" in main() function
-sed -i '/^        add \${@:2}$/a\        # Auto sync to Sub-Store\n        for sync_path in /root/manage_substore.sh /root/claude/init/manage_substore.sh /root/claude/manage_substore.sh; do\n            [ -f "$sync_path" ] \&\& bash "$sync_path" sync >/dev/null 2>\&1 \& \&\& break\n        done' "$CORE_SH"
+sed -i '/^        add \${@:2}$/a\        # Auto sync to Sub-Store\n        for sync_path in /root/manage_substore.sh /root/claude/init/manage_substore.sh /root/claude/manage_substore.sh; do\n            if [ -f "$sync_path" ]; then\n                bash "$sync_path" sync >/dev/null 2>\&1 \&\n                break\n            fi\n        done' "$CORE_SH"
 
 # Inject sync code after "del $2" in main() function
-sed -i '/^        del \$2$/a\        # Auto sync to Sub-Store\n        for sync_path in /root/manage_substore.sh /root/claude/init/manage_substore.sh /root/claude/manage_substore.sh; do\n            [ -f "$sync_path" ] \&\& bash "$sync_path" sync >/dev/null 2>\&1 \& \&\& break\n        done' "$CORE_SH"
+sed -i '/^        del \$2$/a\        # Auto sync to Sub-Store\n        for sync_path in /root/manage_substore.sh /root/claude/init/manage_substore.sh /root/claude/manage_substore.sh; do\n            if [ -f "$sync_path" ]; then\n                bash "$sync_path" sync >/dev/null 2>\&1 \&\n                break\n            fi\n        done' "$CORE_SH"
 INJECT_EOF
         chmod +x /tmp/inject_substore.sh
         /tmp/inject_substore.sh "$CORE_SH"
