@@ -428,29 +428,50 @@ main() {
     # create a reality config
     add reality
 
-    # integrate Sub-Store auto-sync
-    msg ok "集成 Sub-Store 自动同步..."
+    # integrate Sub-Store auto management
+    msg ok "集成 Sub-Store 自动管理..."
 
-    # download sync script
-    if wget --no-check-certificate -q -O /root/sync_to_substore.sh https://raw.githubusercontent.com/kakakakaka1/init/refs/heads/main/sync_to_substore.sh; then
-        chmod +x /root/sync_to_substore.sh
-        msg ok "同步脚本下载成功"
+    # download unified management script
+    if wget --no-check-certificate -q -O /root/manage_substore.sh https://raw.githubusercontent.com/kakakakaka1/init/refs/heads/main/manage_substore.sh; then
+        chmod +x /root/manage_substore.sh
+        msg ok "管理脚本下载成功"
+    else
+        msg warn "管理脚本下载失败，尝试使用本地脚本"
+        if [ -f "/root/claude/manage_substore.sh" ]; then
+            cp /root/claude/manage_substore.sh /root/manage_substore.sh
+            chmod +x /root/manage_substore.sh
+            msg ok "使用本地管理脚本"
+        else
+            msg warn "未找到管理脚本，跳过 Sub-Store 集成"
+        fi
+    fi
 
-        # integrate auto-sync into core.sh
-        CORE_SH="$is_sh_dir/src/core.sh"
-        if [ -f "$CORE_SH" ]; then
-            # backup
-            cp "$CORE_SH" "${CORE_SH}.backup.$(date +%Y%m%d_%H%M%S)"
+    # integrate auto-management into core.sh
+    CORE_SH="$is_sh_dir/src/core.sh"
+    if [ -f "$CORE_SH" ] && [ -f "/root/manage_substore.sh" ]; then
+        # backup
+        cp "$CORE_SH" "${CORE_SH}.backup.$(date +%Y%m%d_%H%M%S)"
 
-            # sync code snippet
-            SYNC_CODE='
+        # sync code snippet (for add and change functions)
+        SYNC_CODE='
     # Auto sync to Sub-Store
-    if [ -f "/root/sync_to_substore.sh" ]; then
-        /root/sync_to_substore.sh > /dev/null 2>&1 &
+    if [ -f "/root/manage_substore.sh" ]; then
+        /root/manage_substore.sh sync > /dev/null 2>&1 &
     fi'
 
-            # integrate into add() function
-            awk -v sync="$SYNC_CODE" '
+        # delete code snippet (for del function)
+        DELETE_CODE='
+    # Auto delete from Sub-Store
+    if [ -f "/root/manage_substore.sh" ]; then
+        local node_prefix=$(hostname)
+        local config_name="${args[1]}"
+        if [ -n "$config_name" ]; then
+            /root/manage_substore.sh delete "${node_prefix}-${config_name}" > /dev/null 2>&1 &
+        fi
+    fi'
+
+        # integrate into add() function
+        awk -v sync="$SYNC_CODE" '
 /^add\(\) \{/ { in_add = 1 }
 in_add && /^    info$/ {
     print $0
@@ -461,8 +482,8 @@ in_add && /^}$/ { in_add = 0 }
 { print }
 ' "$CORE_SH" > "${CORE_SH}.tmp" && mv "${CORE_SH}.tmp" "$CORE_SH"
 
-            # integrate into change() function
-            awk -v sync="$SYNC_CODE" '
+        # integrate into change() function
+        awk -v sync="$SYNC_CODE" '
 /^change\(\) \{/ { in_change = 1 }
 in_change && /^    esac$/ {
     print $0
@@ -473,15 +494,24 @@ in_change && /^}$/ { in_change = 0 }
 { print }
 ' "$CORE_SH" > "${CORE_SH}.tmp" && mv "${CORE_SH}.tmp" "$CORE_SH"
 
-            # verify
-            if grep -q "Auto sync to Sub-Store" "$CORE_SH"; then
-                msg ok "Sub-Store 自动同步集成完成"
-            else
-                msg warn "Sub-Store 自动同步集成可能失败"
-            fi
+        # integrate into del() function
+        awk -v delete="$DELETE_CODE" '
+/^del\(\) \{/ { in_del = 1 }
+in_del && /^    manage_del "$@"$/ {
+    print delete
+    print $0
+    next
+}
+in_del && /^}$/ { in_del = 0 }
+{ print }
+' "$CORE_SH" > "${CORE_SH}.tmp" && mv "${CORE_SH}.tmp" "$CORE_SH"
+
+        # verify
+        if grep -q "Auto sync to Sub-Store" "$CORE_SH" && grep -q "Auto delete from Sub-Store" "$CORE_SH"; then
+            msg ok "Sub-Store 自动管理集成完成"
+        else
+            msg warn "Sub-Store 集成可能不完整"
         fi
-    else
-        msg warn "同步脚本下载失败，跳过 Sub-Store 集成"
     fi
 
     # remove tmp dir and exit.
