@@ -478,14 +478,11 @@ CORE_SH="$1"
 # Backup
 cp "$CORE_SH" "${CORE_SH}.backup.$(date +%Y%m%d_%H%M%S)"
 
-# Inject sync code into add() function (after function declaration)
-perl -i -pe 'if (/^add\(\) \{$/ && !$injected_add) { $_ .= "\n    # Auto sync to Sub-Store\n    if [ -f \"/root/manage_substore.sh\" ]; then\n        /root/manage_substore.sh sync > /dev/null 2>&1 &\n    fi\n"; $injected_add=1; }' "$CORE_SH"
+# Inject sync code after "add ${@:2}" in main() function
+sed -i '/^        add \${@:2}$/a\        # Auto sync to Sub-Store\n        for sync_path in /root/manage_substore.sh /root/claude/init/manage_substore.sh /root/claude/manage_substore.sh; do\n            [ -f "$sync_path" ] \&\& bash "$sync_path" sync >/dev/null 2>\&1 \& \&\& break\n        done' "$CORE_SH"
 
-# Inject sync code into change() function (after function declaration)
-perl -i -pe 'if (/^change\(\) \{$/ && !$injected_change) { $_ .= "\n    # Auto sync to Sub-Store\n    if [ -f \"/root/manage_substore.sh\" ]; then\n        /root/manage_substore.sh sync > /dev/null 2>&1 &\n    fi\n"; $injected_change=1; }' "$CORE_SH"
-
-# Inject delete code into del() function (after function declaration)
-perl -i -pe 'if (/^del\(\) \{$/ && !$injected_del) { $_ .= "\n    # Auto delete from Sub-Store\n    if [ -f \"/root/manage_substore.sh\" ]; then\n        local node_prefix=\$(hostname)\n        local config_name=\"\${args[1]}\"\n        if [ -n \"\$config_name\" ]; then\n            /root/manage_substore.sh delete \"\${node_prefix}-\${config_name}\" > /dev/null 2>&1 &\n        fi\n    fi\n"; $injected_del=1; }' "$CORE_SH"
+# Inject sync code after "del $2" in main() function
+sed -i '/^        del \$2$/a\        # Auto sync to Sub-Store\n        for sync_path in /root/manage_substore.sh /root/claude/init/manage_substore.sh /root/claude/manage_substore.sh; do\n            [ -f "$sync_path" ] \&\& bash "$sync_path" sync >/dev/null 2>\&1 \& \&\& break\n        done' "$CORE_SH"
 INJECT_EOF
         chmod +x /tmp/inject_substore.sh
         /tmp/inject_substore.sh "$CORE_SH"

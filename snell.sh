@@ -648,6 +648,10 @@ EOF
         echo -e "\n${CYAN}正在同步节点到 Sub-Store...${RESET}"
         /root/claude/manage_substore.sh sync > /dev/null 2>&1 &
         echo -e "${GREEN}✓ 后台同步已触发（Snell + sing-box 节点）${RESET}"
+    elif [ -f "/root/claude/init/manage_substore.sh" ]; then
+        echo -e "\n${CYAN}正在同步节点到 Sub-Store...${RESET}"
+        /root/claude/init/manage_substore.sh sync > /dev/null 2>&1 &
+        echo -e "${GREEN}✓ 后台同步已触发（Snell + sing-box 节点）${RESET}"
     fi
 
     # 创建管理脚本
@@ -789,6 +793,10 @@ uninstall_snell() {
     elif [ -f "/root/claude/manage_substore.sh" ]; then
         echo -e "${CYAN}正在从 Sub-Store 删除相关节点...${RESET}"
         /root/claude/manage_substore.sh delete "${node_prefix}-snell" > /dev/null 2>&1 || true
+        echo -e "${GREEN}✓ Sub-Store 节点删除完成${RESET}"
+    elif [ -f "/root/claude/init/manage_substore.sh" ]; then
+        echo -e "${CYAN}正在从 Sub-Store 删除相关节点...${RESET}"
+        /root/claude/init/manage_substore.sh delete "${node_prefix}-snell" > /dev/null 2>&1 || true
         echo -e "${GREEN}✓ Sub-Store 节点删除完成${RESET}"
     fi
 
