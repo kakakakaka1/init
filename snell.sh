@@ -639,11 +639,14 @@ EOF
         generate_surge_config "$IPV6_ADDR" "$PORT" "$PSK" "$SNELL_VERSION_CHOICE" "$IP_COUNTRY_IPV6" "$installed_version"
     fi
 
-    # Auto sync to Sub-Store (if sync script exists)
-    if [ -f "/root/sync_to_substore.sh" ]; then
+    # Auto sync to Sub-Store (if manage script exists)
+    if [ -f "/root/manage_substore.sh" ]; then
         echo -e "\n${CYAN}正在同步节点到 Sub-Store...${RESET}"
-        # Trigger sync - will auto-extract Snell nodes from /etc/snell/users/
-        /root/sync_to_substore.sh > /dev/null 2>&1 &
+        /root/manage_substore.sh sync > /dev/null 2>&1 &
+        echo -e "${GREEN}✓ 后台同步已触发（Snell + sing-box 节点）${RESET}"
+    elif [ -f "/root/claude/manage_substore.sh" ]; then
+        echo -e "\n${CYAN}正在同步节点到 Sub-Store...${RESET}"
+        /root/claude/manage_substore.sh sync > /dev/null 2>&1 &
         echo -e "${GREEN}✓ 后台同步已触发（Snell + sing-box 节点）${RESET}"
     fi
 
@@ -775,6 +778,20 @@ update_snell_binary() {
 uninstall_snell() {
     echo -e "${CYAN}正在卸载 Snell${RESET}"
 
+    # 获取当前主机名作为节点前缀
+    local node_prefix=$(hostname)
+
+    # 删除 Sub-Store 中的所有 Snell 节点
+    if [ -f "/root/manage_substore.sh" ]; then
+        echo -e "${CYAN}正在从 Sub-Store 删除相关节点...${RESET}"
+        /root/manage_substore.sh delete "${node_prefix}-snell" > /dev/null 2>&1 || true
+        echo -e "${GREEN}✓ Sub-Store 节点删除完成${RESET}"
+    elif [ -f "/root/claude/manage_substore.sh" ]; then
+        echo -e "${CYAN}正在从 Sub-Store 删除相关节点...${RESET}"
+        /root/claude/manage_substore.sh delete "${node_prefix}-snell" > /dev/null 2>&1 || true
+        echo -e "${GREEN}✓ Sub-Store 节点删除完成${RESET}"
+    fi
+
     # 停止并禁用主服务
     systemctl stop snell
     systemctl disable snell
@@ -801,10 +818,10 @@ uninstall_snell() {
     rm -f /usr/local/bin/snell-server
     rm -rf ${SNELL_CONF_DIR}
     rm -f /usr/local/bin/snell  # 删除管理脚本
-    
+
     # 重载 systemd 配置
     systemctl daemon-reload
-    
+
     echo -e "${GREEN}Snell 及其所有多用户配置已成功卸载${RESET}"
 }
 
