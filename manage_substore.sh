@@ -172,18 +172,18 @@ ${node_v5}
 # 主功能函数
 # ============================================================
 
-# 同步功能（添加 + 去重）
+# 同步功能（双向同步：添加 + 删除 + 去重）
 sync_nodes() {
     echo ""
     echo -e "${cyan}=================================================${none}"
-    echo -e "${cyan}Sub-Store 节点同步（自动去重）${none}"
+    echo -e "${cyan}Sub-Store 节点双向同步（自动去重）${none}"
     echo -e "${cyan}=================================================${none}"
     echo -e "订阅名称: ${green}$SUB_NAME${none}"
     echo -e "节点前缀: ${green}$NODE_PREFIX${none}"
     echo ""
 
     # 1. 获取当前订阅
-    echo -e "${cyan}[1/4] 获取当前订阅...${none}"
+    echo -e "${cyan}[1/5] 获取当前订阅...${none}"
     local current_sub=$(get_current_subscription)
 
     if [ -z "$current_sub" ]; then
@@ -197,7 +197,7 @@ sync_nodes() {
 
     # 2. 提取本地节点
     echo ""
-    echo -e "${cyan}[2/4] 提取本地节点...${none}"
+    echo -e "${cyan}[2/5] 提取本地节点...${none}"
 
     local singbox_result=$(extract_singbox_nodes)
     local singbox_count=$(echo "$singbox_result" | head -1 | cut -d'|' -f1)
@@ -224,14 +224,70 @@ sync_nodes() {
     echo -e "${green}✓ Snell: $snell_count 个节点${none}"
     echo -e "${green}✓ 总计: $total_local 个节点${none}"
 
-    if [ $total_local -eq 0 ]; then
-        echo -e "${yellow}⚠ 未找到任何本地节点${none}"
-        return 0
-    fi
-
-    # 3. 智能去重
+    # 3. 清理订阅中本地已删除的节点
     echo ""
-    echo -e "${cyan}[3/4] 智能去重检查...${none}"
+    echo -e "${cyan}[3/5] 清理订阅中已删除的节点...${none}"
+
+    local cleaned_content=""
+    local removed_count=0
+    local kept_count=0
+
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+
+        # 检查是否是当前主机的节点（通过前缀识别）
+        local is_local_node=false
+        # 匹配 Surge 格式：以 NODE_PREFIX- 开头
+        # 匹配 URL 格式：备注部分以 #NODE_PREFIX- 开头
+        if [[ "$line" =~ ^${NODE_PREFIX}- ]] || [[ "$line" =~ \#${NODE_PREFIX}- ]]; then
+            is_local_node=true
+        fi
+
+        # 如果不是当前主机的节点，保留
+        if [ "$is_local_node" = false ]; then
+            cleaned_content="${cleaned_content}${line}
+"
+            kept_count=$((kept_count + 1))
+            continue
+        fi
+
+        # 如果是当前主机的节点，检查是否在本地存在
+        local node_core=$(echo "$line" | sed 's/#.*//')
+        local node_exists=false
+
+        while IFS= read -r local_node; do
+            [ -z "$local_node" ] && continue
+            local local_core=$(echo "$local_node" | sed 's/#.*//')
+            if [[ "$node_core" == "$local_core" ]]; then
+                node_exists=true
+                break
+            fi
+        done <<< "$all_local_nodes"
+
+        if [ "$node_exists" = true ]; then
+            # 本地存在，保留
+            cleaned_content="${cleaned_content}${line}
+"
+            kept_count=$((kept_count + 1))
+        else
+            # 本地不存在，删除
+            local node_remark=""
+            if [[ "$line" =~ \#(.+)$ ]]; then
+                node_remark="${BASH_REMATCH[1]}"
+            elif [[ "$line" =~ ^([^=]+)\ = ]]; then
+                node_remark="${BASH_REMATCH[1]}"
+            fi
+            echo -e "  ${red}-${none} 删除: $node_remark"
+            removed_count=$((removed_count + 1))
+        fi
+    done <<< "$current_content"
+
+    echo -e "${green}✓ 保留: $kept_count 个节点${none}"
+    echo -e "${red}✓ 删除: $removed_count 个节点${none}"
+
+    # 4. 添加新节点（去重）
+    echo ""
+    echo -e "${cyan}[4/5] 添加新节点（去重检查）...${none}"
 
     local new_nodes=""
     local duplicate_count=0
@@ -251,8 +307,8 @@ sync_nodes() {
             node_remark="${BASH_REMATCH[1]}"
         fi
 
-        # 检查是否已存在
-        if echo "$current_content" | grep -qF "$node_core"; then
+        # 检查是否已存在于清理后的内容中
+        if echo "$cleaned_content" | grep -qF "$node_core"; then
             echo -e "  ${yellow}⊗${none} 跳过: $node_remark"
             duplicate_count=$((duplicate_count + 1))
             continue
@@ -266,30 +322,35 @@ sync_nodes() {
     done <<< "$all_local_nodes"
 
     echo ""
-    echo "去重结果："
+    echo "同步结果："
     echo -e "  - 本地节点: ${yellow}$total_local${none} 个"
+    echo -e "  - 删除节点: ${red}$removed_count${none} 个"
     echo -e "  - 跳过重复: ${yellow}$duplicate_count${none} 个"
-    echo -e "  - 将新增: ${green}$added_count${none} 个"
+    echo -e "  - 新增节点: ${green}$added_count${none} 个"
 
-    # 如果没有新节点
-    if [ $added_count -eq 0 ]; then
+    # 如果没有任何变化
+    if [ $removed_count -eq 0 ] && [ $added_count -eq 0 ]; then
         echo ""
-        echo -e "${green}✓ 所有节点已存在，无需更新${none}"
+        echo -e "${green}✓ 订阅已是最新状态，无需更新${none}"
         return 0
     fi
 
-    # 4. 更新订阅
+    # 5. 更新订阅
     echo ""
-    echo -e "${cyan}[4/4] 更新订阅...${none}"
+    echo -e "${cyan}[5/5] 更新订阅...${none}"
 
     # 合并内容
     local final_content
-    if [ -n "$current_content" ]; then
-        case "$current_content" in
-            *$'\n') final_content="${current_content}${new_nodes}" ;;
-            *) final_content="${current_content}
+    if [ -n "$cleaned_content" ]; then
+        if [ -n "$new_nodes" ]; then
+            case "$cleaned_content" in
+                *$'\n') final_content="${cleaned_content}${new_nodes}" ;;
+                *) final_content="${cleaned_content}
 ${new_nodes}" ;;
-        esac
+            esac
+        else
+            final_content="${cleaned_content}"
+        fi
     else
         final_content="${new_nodes}"
     fi
@@ -307,6 +368,7 @@ ${new_nodes}" ;;
         echo ""
         echo "统计信息:"
         echo -e "  - 同步前: ${yellow}$current_count${none} 个节点"
+        echo -e "  - 删除: ${red}$removed_count${none} 个节点"
         echo -e "  - 新增: ${green}$added_count${none} 个节点"
         echo -e "  - 同步后: ${green}$final_count${none} 个节点"
         echo ""
