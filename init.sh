@@ -446,6 +446,49 @@ F2BJAILEOF
     return 0
 }
 
+# 步骤 6: 配置 Sub-Store 自动管理
+step6_substore_config() {
+    echo ""
+    echo "===== 步骤 6: 配置 Sub-Store 自动管理 ====="
+
+    MANAGE_SCRIPT_URL="https://raw.githubusercontent.com/kakakakaka1/init/main/manage_substore.sh"
+    MANAGE_SCRIPT_LOCAL_PATH="/root/manage_substore.sh"
+
+    echo "正在下载 Sub-Store 管理脚本..."
+    if ! wget -q -O "$MANAGE_SCRIPT_LOCAL_PATH" "$MANAGE_SCRIPT_URL"; then
+        echo "错误：下载管理脚本失败。"
+        return 1
+    fi
+    chmod +x "$MANAGE_SCRIPT_LOCAL_PATH"
+    echo "Sub-Store 管理脚本下载成功。"
+    echo # 空行
+
+    echo "请配置 Sub-Store 信息："
+    read -p "请输入 Sub-Store API 地址: " SUBSTORE_API
+    read -p "请输入订阅名称: " SUB_NAME
+
+    if [ -z "$SUBSTORE_API" ] || [ -z "$SUB_NAME" ]; then
+        echo "警告：未配置 Sub-Store 信息，跳过配置步骤。"
+        echo "您可以稍后手动编辑 $MANAGE_SCRIPT_LOCAL_PATH 进行配置。"
+    else
+        echo "正在更新配置..."
+        sed -i "s|^SUBSTORE_API_BASE=.*|SUBSTORE_API_BASE=\"$SUBSTORE_API\"|" "$MANAGE_SCRIPT_LOCAL_PATH"
+        sed -i "s|^SUB_NAME=.*|SUB_NAME=\"$SUB_NAME\"|" "$MANAGE_SCRIPT_LOCAL_PATH"
+        echo "配置已更新。"
+    fi
+    echo # 空行
+
+    echo "正在执行首次同步..."
+    if "$MANAGE_SCRIPT_LOCAL_PATH" sync; then
+        echo "首次同步完成。"
+    else
+        echo "警告：首次同步失败，请检查配置。"
+    fi
+
+    echo "===== 步骤 6 完成。 ====="
+    return 0
+}
+
 # 执行所有步骤
 execute_all() {
     echo "===== 开始执行所有步骤 ====="
@@ -480,6 +523,11 @@ execute_all() {
         exit 1
     fi
 
+    step6_substore_config
+    if [ $? -ne 0 ]; then
+        echo "步骤 6 失败，但继续执行。"
+    fi
+
     echo ""
     echo "===== 所有自动化步骤已执行完毕。 ====="
 }
@@ -495,6 +543,7 @@ show_menu() {
     echo "3. 步骤 3: 执行 sing-box 安装和配置"
     echo "4. 步骤 4: 下载并执行 snell.sh 脚本"
     echo "5. 步骤 5: SSH安全加固和Fail2ban配置"
+    echo "6. 步骤 6: 配置 Sub-Store 自动管理"
     echo "A. 执行全部步骤（默认）"
     echo "Q. 退出"
     echo "============================================"
@@ -538,6 +587,9 @@ case $choice in
         ;;
     5)
         step5_ssh_hardening
+        ;;
+    6)
+        step6_substore_config
         ;;
     A)
         execute_all
