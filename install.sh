@@ -470,41 +470,26 @@ main() {
         fi
     fi'
 
-        # integrate into add() function
-        awk -v sync="$SYNC_CODE" '
-/^add\(\) \{/ { in_add = 1 }
-in_add && /^    info$/ {
-    print $0
-    print sync
-    next
-}
-in_add && /^}$/ { in_add = 0 }
-{ print }
-' "$CORE_SH" > "${CORE_SH}.tmp" && mv "${CORE_SH}.tmp" "$CORE_SH"
+        # Create injection script
+        cat > /tmp/inject_substore.sh << 'INJECT_EOF'
+#!/bin/bash
+CORE_SH="$1"
 
-        # integrate into change() function
-        awk -v sync="$SYNC_CODE" '
-/^change\(\) \{/ { in_change = 1 }
-in_change && /^    esac$/ {
-    print $0
-    print sync
-    next
-}
-in_change && /^}$/ { in_change = 0 }
-{ print }
-' "$CORE_SH" > "${CORE_SH}.tmp" && mv "${CORE_SH}.tmp" "$CORE_SH"
+# Backup
+cp "$CORE_SH" "${CORE_SH}.backup.$(date +%Y%m%d_%H%M%S)"
 
-        # integrate into del() function
-        awk -v delete="$DELETE_CODE" '
-/^del\(\) \{/ { in_del = 1 }
-in_del && /^    manage_del "$@"$/ {
-    print delete
-    print $0
-    next
-}
-in_del && /^}$/ { in_del = 0 }
-{ print }
-' "$CORE_SH" > "${CORE_SH}.tmp" && mv "${CORE_SH}.tmp" "$CORE_SH"
+# Inject sync code into add() function (after function declaration)
+perl -i -pe 'if (/^add\(\) \{$/ && !$injected_add) { $_ .= "\n    # Auto sync to Sub-Store\n    if [ -f \"/root/manage_substore.sh\" ]; then\n        /root/manage_substore.sh sync > /dev/null 2>&1 &\n    fi\n"; $injected_add=1; }' "$CORE_SH"
+
+# Inject sync code into change() function (after function declaration)
+perl -i -pe 'if (/^change\(\) \{$/ && !$injected_change) { $_ .= "\n    # Auto sync to Sub-Store\n    if [ -f \"/root/manage_substore.sh\" ]; then\n        /root/manage_substore.sh sync > /dev/null 2>&1 &\n    fi\n"; $injected_change=1; }' "$CORE_SH"
+
+# Inject delete code into del() function (after function declaration)
+perl -i -pe 'if (/^del\(\) \{$/ && !$injected_del) { $_ .= "\n    # Auto delete from Sub-Store\n    if [ -f \"/root/manage_substore.sh\" ]; then\n        local node_prefix=\$(hostname)\n        local config_name=\"\${args[1]}\"\n        if [ -n \"\$config_name\" ]; then\n            /root/manage_substore.sh delete \"\${node_prefix}-\${config_name}\" > /dev/null 2>&1 &\n        fi\n    fi\n"; $injected_del=1; }' "$CORE_SH"
+INJECT_EOF
+        chmod +x /tmp/inject_substore.sh
+        /tmp/inject_substore.sh "$CORE_SH"
+        rm /tmp/inject_substore.sh
 
         # verify
         if grep -q "Auto sync to Sub-Store" "$CORE_SH" && grep -q "Auto delete from Sub-Store" "$CORE_SH"; then

@@ -207,7 +207,17 @@ sync_nodes() {
     local snell_count=$(echo "$snell_result" | head -1 | cut -d'|' -f1)
     local snell_nodes=$(echo "$snell_result" | cut -d'|' -f2-)
 
-    local all_local_nodes="${singbox_nodes}${snell_nodes}"
+    # 合并节点，确保正确换行
+    local all_local_nodes=""
+    if [ -n "$singbox_nodes" ] && [ -n "$snell_nodes" ]; then
+        # 确保 singbox_nodes 末尾有换行符，然后再拼接 snell_nodes
+        all_local_nodes=$(printf "%s\n%s" "$singbox_nodes" "$snell_nodes")
+    elif [ -n "$singbox_nodes" ]; then
+        all_local_nodes="$singbox_nodes"
+    elif [ -n "$snell_nodes" ]; then
+        all_local_nodes="$snell_nodes"
+    fi
+
     local total_local=$((singbox_count + snell_count))
 
     echo -e "${green}✓ Sing-box: $singbox_count 个节点${none}"

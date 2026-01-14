@@ -464,17 +464,33 @@ step6_substore_config() {
     echo # 空行
 
     echo "请配置 Sub-Store 信息："
-    read -p "请输入 Sub-Store API 地址: " SUBSTORE_API
-    read -p "请输入订阅名称: " SUB_NAME
+    read -p "请输入 Sub-Store API 地址（留空跳过）: " SUBSTORE_API
+    read -p "请输入订阅名称（留空跳过）: " SUB_NAME
 
-    if [ -z "$SUBSTORE_API" ] || [ -z "$SUB_NAME" ]; then
-        echo "警告：未配置 Sub-Store 信息，跳过配置步骤。"
-        echo "您可以稍后手动编辑 $MANAGE_SCRIPT_LOCAL_PATH 进行配置。"
-    else
-        echo "正在更新配置..."
+    # 分别处理每个配置项
+    local config_updated=false
+
+    if [ -n "$SUBSTORE_API" ]; then
+        echo "正在更新 Sub-Store API 地址..."
         sed -i "s|^SUBSTORE_API_BASE=.*|SUBSTORE_API_BASE=\"$SUBSTORE_API\"|" "$MANAGE_SCRIPT_LOCAL_PATH"
+        echo "Sub-Store API 地址已更新。"
+        config_updated=true
+    else
+        echo "跳过 Sub-Store API 地址配置（将使用脚本中的默认值）。"
+    fi
+
+    if [ -n "$SUB_NAME" ]; then
+        echo "正在更新订阅名称..."
         sed -i "s|^SUB_NAME=.*|SUB_NAME=\"$SUB_NAME\"|" "$MANAGE_SCRIPT_LOCAL_PATH"
-        echo "配置已更新。"
+        echo "订阅名称已更新。"
+        config_updated=true
+    else
+        echo "跳过订阅名称配置（将使用脚本中的默认值）。"
+    fi
+
+    if [ "$config_updated" = false ]; then
+        echo "警告：未配置任何 Sub-Store 信息。"
+        echo "您可以稍后手动编辑 $MANAGE_SCRIPT_LOCAL_PATH 进行配置。"
     fi
     echo # 空行
 
