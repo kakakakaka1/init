@@ -1,492 +1,556 @@
 #!/bin/bash
 
-author=233boy
-# github=https://github.com/233boy/sing-box
+# ==============================================================================
+# 初始化脚本 - 菜单式执行
+# ==============================================================================
 
-# bash fonts colors
-red='\e[31m'
-yellow='\e[33m'
-gray='\e[90m'
-green='\e[92m'
-blue='\e[94m'
-magenta='\e[95m'
-cyan='\e[96m'
-none='\e[0m'
-_red() { echo -e ${red}$@${none}; }
-_blue() { echo -e ${blue}$@${none}; }
-_cyan() { echo -e ${cyan}$@${none}; }
-_green() { echo -e ${green}$@${none}; }
-_yellow() { echo -e ${yellow}$@${none}; }
-_magenta() { echo -e ${magenta}$@${none}; }
-_red_bg() { echo -e "\e[41m$@${none}"; }
+# 检查是否以 root 权限运行
+if [ "$(id -u)" -ne 0 ]; then
+    echo "错误：此脚本需要以 root 权限运行。"
+    echo "请使用 sudo $0 来执行。"
+    exit 1
+fi
 
-is_err=$(_red_bg 错误!)
-is_warn=$(_red_bg 警告!)
+# ==============================================================================
+# 函数定义
+# ==============================================================================
 
-err() {
-    echo -e "\n$is_err $@\n" && exit 1
+# 步骤 1: 使用 APT 安装必备软件包
+step1_install_packages() {
+    echo ""
+    echo "===== 步骤 1: 使用 APT 安装必备软件包 ====="
+    echo "注意：此脚本假定当前系统使用 APT 包管理器 (例如 Debian, Ubuntu)。"
+
+    # 预设要安装的软件包列表
+    PACKAGES_TO_INSTALL="vim curl wget telnet iperf3"
+    echo "将要安装的软件包: $PACKAGES_TO_INSTALL"
+    echo # 空行
+
+    # 更新软件包列表 (apt-get update)
+    echo "正在更新软件包列表 (apt-get update)..."
+    if ! apt-get update -qq; then
+        echo "错误：软件包列表更新失败 (apt-get update)。"
+        echo "请检查网络连接、软件源配置 (/etc/apt/sources.list 等) 以及DNS设置。"
+        return 1
+    fi
+    echo "软件包列表更新成功。"
+    echo # 空行
+
+    # 安装软件包 (apt-get install)
+    echo "正在安装软件包：$PACKAGES_TO_INSTALL ..."
+    if ! DEBIAN_FRONTEND=noninteractive apt-get install -y $PACKAGES_TO_INSTALL; then
+        echo "错误：软件包安装命令 (apt-get install) 执行失败。"
+        UNINSTALLED_PKGS=""
+        for pkg in $PACKAGES_TO_INSTALL; do
+            if ! dpkg -s "$pkg" &> /dev/null; then
+                UNINSTALLED_PKGS="$UNINSTALLED_PKGS $pkg"
+            fi
+        done
+        if [ -n "$UNINSTALLED_PKGS" ]; then
+            echo "以下软件包可能未能成功安装: $UNINSTALLED_PKGS"
+        fi
+        echo "===== 步骤 1 失败：软件包安装过程中发生错误。 ====="
+        return 1
+    fi
+    echo "软件包安装命令已成功执行。"
+    echo # 空行
+
+    # 验证已安装的软件包
+    echo "正在验证已安装的软件包..."
+    ALL_PACKAGES_VERIFIED=true
+    MISSING_PACKAGES_AFTER_INSTALL=""
+    for pkg in $PACKAGES_TO_INSTALL; do
+        if ! dpkg -s "$pkg" &> /dev/null; then
+            echo "警告：软件包 '$pkg' 在安装后未能通过 dpkg -s 验证。"
+            MISSING_PACKAGES_AFTER_INSTALL="$MISSING_PACKAGES_AFTER_INSTALL $pkg"
+            ALL_PACKAGES_VERIFIED=false
+        fi
+    done
+
+    if $ALL_PACKAGES_VERIFIED; then
+        echo "所有预定软件包 ($PACKAGES_TO_INSTALL) 已成功安装并验证。"
+        echo "===== 步骤 1 完成。 ====="
+    else
+        echo "警告：以下软件包在安装命令成功后未能通过验证: $MISSING_PACKAGES_AFTER_INSTALL"
+        echo "===== 步骤 1 完成，但有警告。 ====="
+    fi
+    return 0
 }
 
-warn() {
-    echo -e "\n$is_warn $@\n"
+# 步骤 2: 下载并执行外部工具脚本 (tools.sh) 至 /root 目录
+step2_tools_script() {
+    echo ""
+    echo "===== 步骤 2: 下载并执行外部工具脚本 (tools.sh) 至 /root 目录 ====="
+
+    TOOLS_SCRIPT_URL="https://raw.githubusercontent.com/kakakakaka1/init/main/tools.sh"
+    TOOLS_SCRIPT_FILENAME="tools.sh"
+    TOOLS_SCRIPT_LOCAL_PATH="/root/${TOOLS_SCRIPT_FILENAME}"
+    TOOLS_SCRIPT_INPUT="2"
+
+    echo "正在从 $TOOLS_SCRIPT_URL 下载脚本 '$TOOLS_SCRIPT_FILENAME' 到 $TOOLS_SCRIPT_LOCAL_PATH ..."
+    if ! wget -q -O "$TOOLS_SCRIPT_LOCAL_PATH" "$TOOLS_SCRIPT_URL"; then
+        echo "错误：下载脚本 '$TOOLS_SCRIPT_FILENAME' 失败。"
+        echo "请检查网络连接、URL是否正确，以及确保对 /root 目录有写入权限。"
+        return 1
+    fi
+    echo "脚本 '$TOOLS_SCRIPT_FILENAME' 下载成功。"
+    echo # 空行
+
+    echo "正在为脚本 $TOOLS_SCRIPT_LOCAL_PATH 添加执行权限..."
+    if ! chmod +x "$TOOLS_SCRIPT_LOCAL_PATH"; then
+        echo "错误：为脚本 $TOOLS_SCRIPT_LOCAL_PATH 添加执行权限失败。"
+        return 1
+    fi
+    echo "执行权限添加成功。"
+    echo # 空行
+
+    echo "正在执行脚本 $TOOLS_SCRIPT_LOCAL_PATH 并自动输入 '$TOOLS_SCRIPT_INPUT'..."
+    if printf "%s\n" "$TOOLS_SCRIPT_INPUT" | "$TOOLS_SCRIPT_LOCAL_PATH"; then
+        echo "脚本 $TOOLS_SCRIPT_LOCAL_PATH 已成功执行。"
+    else
+        echo "错误：脚本 $TOOLS_SCRIPT_LOCAL_PATH 执行过程中失败或返回了错误状态码 $? 。"
+        return 1
+    fi
+    echo # 空行
+    echo "脚本 $TOOLS_SCRIPT_LOCAL_PATH 已执行完毕，并保留在原位置。"
+    echo "===== 步骤 2 完成。 ====="
+    return 0
 }
 
-# root
-[[ $EUID != 0 ]] && err "当前非 ${yellow}ROOT用户.${none}"
+# 步骤 3: 用户提供的脚本内容 (在 /root 目录下执行)
+step3_singbox_install() {
+    echo ""
+    echo "===== 步骤 3: 执行用户指定的 sing-box 安装和配置脚本 (在 /root 目录运行) ====="
 
-# yum or apt-get, ubuntu/debian/centos
-cmd=$(type -P apt-get || type -P yum)
-[[ ! $cmd ]] && err "此脚本仅支持 ${yellow}(Ubuntu or Debian or CentOS)${none}."
+    # 将用户提供的脚本包裹在子 shell 中，并首先切换到 /root 目录
+    (
+        cd /root || { echo "严重错误：无法切换到 /root 目录以执行步骤 3。"; exit 1; }
+        echo "当前工作目录已切换到: $(pwd) (应为 /root)"
+        echo "开始执行用户提供的步骤 3 脚本内容..."
 
-# systemd
-[[ ! $(type -P systemctl) ]] && {
-    err "此系统缺少 ${yellow}(systemctl)${none}, 请尝试执行:${yellow} ${cmd} update -y;${cmd} install systemd -y ${none}来修复此错误."
+        # 下载并准备 install.sh
+        wget https://github.com/233boy/sing-box/raw/main/install.sh
+        chmod +x install.sh
+
+        # 执行安装脚本
+        ./install.sh
+
+        # 等待一段时间，让 sing-box 服务有更充足的时间启动和初始化
+        echo "等待 10 秒，确保 sing-box 服务启动..."
+        sleep 10
+
+        # 使用 sing-box 的完整路径执行 add 命令
+        echo "尝试添加 Shadowsocks 配置..."
+        if /usr/local/bin/sing-box add ss 19999 MJuNsV7e8onbzyAf7HdF aes-128-gcm; then
+            echo "Shadowsocks 配置添加成功。"
+            echo "ok"
+        else
+            echo "错误：添加 Shadowsocks 配置失败。"
+        fi
+    )
+
+    # 检查子shell的退出状态
+    STEP3_EXIT_CODE=$?
+    if [ $STEP3_EXIT_CODE -ne 0 ]; then
+        echo "错误：步骤 3 (用户指定脚本) 执行失败，退出状态码: $STEP3_EXIT_CODE。"
+        return $STEP3_EXIT_CODE
+    fi
+
+    echo "用户指定的步骤 3 已执行。下载的 install.sh (位于/root/install.sh) 保留在原位置。"
+    echo "===== 步骤 3 完成。 ====="
+    return 0
 }
 
-# wget installed or none
-is_wget=$(type -P wget)
+# 步骤 4: 下载并执行 snell.sh 脚本
+step4_snell_install() {
+    echo ""
+    echo "===== 步骤 4: 下载并执行 snell.sh 脚本 ====="
 
-# x64
-case $(uname -m) in
-amd64 | x86_64)
-    is_arch=amd64
-    ;;
-*aarch64* | *armv8*)
-    is_arch=arm64
-    ;;
-*)
-    err "此脚本仅支持 64 位系统..."
-    ;;
+    SNELL_SCRIPT_URL="https://raw.githubusercontent.com/jinqians/snell.sh/main/snell.sh"
+    SNELL_SCRIPT_FILENAME="snell.sh"
+    SNELL_SCRIPT_LOCAL_PATH="/root/${SNELL_SCRIPT_FILENAME}"
+    # 预设输入：先输入 "1" 然后回车，然后再输入1回车 再输入 "20000" 然后回车，然后回车，然后回车，最后输入 "0" 然后回车
+    SNELL_SCRIPT_INPUT_SEQUENCE="1\n1\n20000\n\n\n0\n"
+
+    echo "正在从 $SNELL_SCRIPT_URL 下载脚本 '$SNELL_SCRIPT_FILENAME' 到 $SNELL_SCRIPT_LOCAL_PATH ..."
+    if ! wget -q -O "$SNELL_SCRIPT_LOCAL_PATH" "$SNELL_SCRIPT_URL"; then
+        echo "错误：下载脚本 '$SNELL_SCRIPT_FILENAME' 失败。"
+        echo "请检查网络连接或 URL 是否正确。"
+        return 1
+    fi
+    echo "脚本 '$SNELL_SCRIPT_FILENAME' 下载成功。"
+    echo # 空行
+
+    echo "正在为脚本 $SNELL_SCRIPT_LOCAL_PATH 添加执行权限..."
+    if ! chmod +x "$SNELL_SCRIPT_LOCAL_PATH"; then
+        echo "错误：为脚本 $SNELL_SCRIPT_LOCAL_PATH 添加执行权限失败。"
+        return 1
+    fi
+    echo "执行权限添加成功。"
+    echo # 空行
+
+    echo "正在执行脚本 $SNELL_SCRIPT_LOCAL_PATH 并自动输入预设序列 ('1' -> '1' -> '20000' -> Enter -> Enter -> '0')..."
+    if printf "%b" "$SNELL_SCRIPT_INPUT_SEQUENCE" | "$SNELL_SCRIPT_LOCAL_PATH"; then
+        echo "脚本 $SNELL_SCRIPT_LOCAL_PATH 已成功执行 (根据其最终退出状态)。"
+    else
+        SNELL_EXEC_EXIT_CODE=$?
+        echo "错误：脚本 $SNELL_SCRIPT_LOCAL_PATH 执行过程中失败或返回了错误状态码 $SNELL_EXEC_EXIT_CODE 。"
+        return $SNELL_EXEC_EXIT_CODE
+    fi
+    echo # 空行
+    echo "脚本 $SNELL_SCRIPT_LOCAL_PATH 已执行完毕，并保留在原位置 (/root/${SNELL_SCRIPT_FILENAME})。"
+    echo "===== 步骤 4 完成。 ====="
+    return 0
+}
+
+# 步骤 5: SSH安全加固和Fail2ban配置
+step5_ssh_hardening() {
+    echo ""
+    echo "===== 步骤 5: SSH安全加固和Fail2ban配置 ====="
+
+    # SSH安全配置参数
+    SSH_PORT=50000
+    BACKUP_DIR="/root/ssh_backup_$(date +%Y%m%d_%H%M%S)"
+
+    # 创建备份目录
+    echo "正在创建备份目录: $BACKUP_DIR"
+    mkdir -p "$BACKUP_DIR"
+
+    # 备份现有配置
+    if [[ -f /etc/ssh/sshd_config ]]; then
+        cp /etc/ssh/sshd_config "$BACKUP_DIR/sshd_config.backup"
+        echo "SSH配置已备份"
+    fi
+
+    if [[ -f /etc/fail2ban/jail.local ]]; then
+        cp /etc/fail2ban/jail.local "$BACKUP_DIR/jail.local.backup"
+        echo "Fail2ban配置已备份"
+    fi
+
+    # 安装fail2ban和openssh-server
+    echo "正在安装fail2ban和openssh-server..."
+    if ! DEBIAN_FRONTEND=noninteractive apt-get install -y fail2ban openssh-server; then
+        echo "错误：fail2ban和openssh-server安装失败"
+        return 1
+    fi
+    echo "fail2ban和openssh-server安装成功"
+
+    # 设置SSH公钥
+    echo "正在设置SSH公钥..."
+    mkdir -p /root/.ssh
+    chmod 700 /root/.ssh
+    echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC2CNY7JG7dO3JVB0sCIfKJTtJH2F3JJ8pnv0Vh4TTUR6eY1UWOJx1PGU120tUu1Xt/UnSh4m/6phWEGqVBWemYhWF1pGbhzRBpbX99b/4Xd5o291ZBVNh6Hp5QCO424J4bOxA28CcmvwaHTf5MHaa4zsLtfZB7uE6kcuuL4I00EdsBWHH888CAtXv1MgfgCLAxiP5E5m1PnTE+tfZl9wRFRK99lBfi0BgSQH4dBtu8cDUCz7MPGDznbfOapSDRoWrKMQ1SQ2lE28EtpJvWzUJvJjhn79McbeKowpyIFMJhZGsp61b8K3GZIOjJte7N5B8XLoRfrKE5pbv/tXyK7b5l" > /root/.ssh/authorized_keys
+    chmod 600 /root/.ssh/authorized_keys
+    echo "SSH公钥已添加到authorized_keys"
+
+    # 配置SSH
+    echo "正在配置SSH服务器 (端口: $SSH_PORT)..."
+    cat > /etc/ssh/sshd_config << 'SSHEOF'
+# SSH Security Hardening Configuration
+# Generated by init.sh SSH hardening step
+
+Include /etc/ssh/sshd_config.d/*.conf
+
+# Network
+Port 50000
+AddressFamily any
+ListenAddress 0.0.0.0
+ListenAddress ::
+
+# Host Keys
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+# Ciphers and keying
+RekeyLimit default none
+
+# Logging
+SyslogFacility AUTH
+LogLevel VERBOSE
+
+# Authentication
+LoginGraceTime 60
+PermitRootLogin prohibit-password
+StrictModes yes
+MaxAuthTries 3
+MaxSessions 10
+
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+
+# Password authentication (DISABLED)
+PasswordAuthentication no
+PermitEmptyPasswords no
+KbdInteractiveAuthentication no
+
+# Kerberos options
+KerberosAuthentication no
+
+# GSSAPI options
+GSSAPIAuthentication no
+
+# PAM
+UsePAM yes
+
+# Network options
+AllowAgentForwarding no
+AllowTcpForwarding no
+GatewayPorts no
+X11Forwarding no
+PermitTTY yes
+PrintMotd no
+TCPKeepAlive yes
+PermitUserEnvironment no
+Compression delayed
+ClientAliveInterval 300
+ClientAliveCountMax 2
+UseDNS no
+PidFile /run/sshd.pid
+MaxStartups 10:30:100
+PermitTunnel no
+
+# Locale
+AcceptEnv LANG LC_*
+
+# Subsystem
+Subsystem sftp /usr/lib/openssh/sftp-server
+SSHEOF
+
+    echo "SSH配置已更新"
+
+    # 创建fail2ban过滤器
+    echo "正在创建fail2ban过滤器..."
+    cat > /etc/fail2ban/filter.d/sshd-aggressive.conf << 'F2BFILTER1EOF'
+# Enhanced SSH filter for aggressive protection
+[INCLUDES]
+before = common.conf
+
+[Definition]
+
+_daemon = sshd
+
+# Aggressive SSH attack patterns - simplified
+failregex = ^.*sshd.*authentication failure.*rhost=<HOST>.*$
+            ^.*sshd.*Failed password for .* from <HOST>.*$
+            ^.*sshd.*Failed password for invalid user .* from <HOST>.*$
+            ^.*sshd.*Invalid user .* from <HOST>.*$
+            ^.*sshd.*Connection closed by <HOST> port.*\[preauth\]$
+            ^.*sshd.*Did not receive identification string from <HOST>.*$
+            ^.*sshd.*Bad protocol version identification .* from <HOST>.*$
+            ^.*sshd.*error: kex_exchange_identification.*<HOST>.*$
+            ^.*sshd.*Connection reset by <HOST> port.*$
+
+ignoreregex =
+F2BFILTER1EOF
+
+    cat > /etc/fail2ban/filter.d/port-scan.conf << 'F2BFILTER2EOF'
+# Fail2Ban filter for port scanning detection
+[Definition]
+# Detect connection attempts and port scans
+
+# Match SSH-specific scanning patterns only
+failregex = ^.*sshd.*: error: kex_exchange_identification: Connection closed by remote host <HOST>.*$
+            ^.*sshd.*: Did not receive identification string from <HOST>.*$
+            ^.*sshd.*: Bad protocol version identification.*from <HOST>.*$
+
+# Ignore local connections
+ignoreregex = ^.*127\.0\.0\.1.*$
+              ^.*::1.*$
+F2BFILTER2EOF
+
+    echo "Fail2ban过滤器已创建"
+
+    # 配置fail2ban
+    echo "正在配置fail2ban..."
+    cat > /etc/fail2ban/jail.local << 'F2BJAILEOF'
+# Aggressive SSH protection and port scan detection
+# Generated by init.sh SSH hardening step
+
+[DEFAULT]
+bantime = 3600
+findtime = 600
+maxretry = 3
+backend = systemd
+
+[sshd]
+enabled = true
+port = 50000
+filter = sshd-aggressive
+logpath = /var/log/auth.log
+backend = systemd
+maxretry = 2
+findtime = 300
+bantime = 3600
+ignoreip = 127.0.0.1/8 ::1
+
+[port-scan]
+enabled = true
+port = all
+filter = port-scan
+logpath = /var/log/auth.log
+backend = systemd
+maxretry = 2
+findtime = 60
+bantime = 86400
+ignoreip = 127.0.0.1/8 ::1
+
+[recidive]
+enabled = true
+filter = recidive
+logpath = /var/log/fail2ban.log
+bantime = 604800
+findtime = 86400
+maxretry = 2
+ignoreip = 127.0.0.1/8 ::1
+F2BJAILEOF
+
+    echo "Fail2ban配置已更新"
+
+    # 测试SSH配置
+    echo "正在测试SSH配置..."
+    if ! sshd -t; then
+        echo "错误：SSH配置测试失败"
+        return 1
+    fi
+    echo "SSH配置测试通过"
+
+    # 重启服务
+    echo "正在重启SSH服务..."
+    if ! systemctl restart ssh; then
+        echo "错误：SSH服务重启失败"
+        return 1
+    fi
+    echo "SSH服务已重启"
+
+    echo "正在启动fail2ban服务..."
+    systemctl enable fail2ban
+    if ! systemctl restart fail2ban; then
+        echo "错误：fail2ban服务启动失败"
+        return 1
+    fi
+    echo "fail2ban服务已启动"
+
+    # 显示状态
+    echo "SSH服务状态:"
+    if ss -tulpn | grep ":$SSH_PORT" > /dev/null; then
+        echo "SSH正在监听端口 $SSH_PORT"
+    else
+        echo "警告：SSH未在端口 $SSH_PORT 上监听"
+    fi
+
+    echo "配置备份位置: $BACKUP_DIR"
+    echo "重要提示：SSH端口已更改为 $SSH_PORT"
+    echo "新的SSH连接命令：ssh -p $SSH_PORT root@\$(服务器IP)"
+    echo "===== 步骤 5 完成。 ====="
+    return 0
+}
+
+# 执行所有步骤
+execute_all() {
+    echo "===== 开始执行所有步骤 ====="
+
+    step1_install_packages
+    if [ $? -ne 0 ]; then
+        echo "步骤 1 失败，停止执行。"
+        exit 1
+    fi
+
+    step2_tools_script
+    if [ $? -ne 0 ]; then
+        echo "步骤 2 失败，停止执行。"
+        exit 1
+    fi
+
+    step3_singbox_install
+    if [ $? -ne 0 ]; then
+        echo "步骤 3 失败，停止执行。"
+        exit 1
+    fi
+
+    step4_snell_install
+    if [ $? -ne 0 ]; then
+        echo "步骤 4 失败，停止执行。"
+        exit 1
+    fi
+
+    step5_ssh_hardening
+    if [ $? -ne 0 ]; then
+        echo "步骤 5 失败，停止执行。"
+        exit 1
+    fi
+
+    echo ""
+    echo "===== 所有自动化步骤已执行完毕。 ====="
+}
+
+# 显示菜单
+show_menu() {
+    echo ""
+    echo "============================================"
+    echo "          初始化脚本执行菜单"
+    echo "============================================"
+    echo "1. 步骤 1: 使用 APT 安装必备软件包"
+    echo "2. 步骤 2: 下载并执行外部工具脚本"
+    echo "3. 步骤 3: 执行 sing-box 安装和配置"
+    echo "4. 步骤 4: 下载并执行 snell.sh 脚本"
+    echo "5. 步骤 5: SSH安全加固和Fail2ban配置"
+    echo "A. 执行全部步骤（默认）"
+    echo "Q. 退出"
+    echo "============================================"
+}
+
+# ==============================================================================
+# 主程序
+# ==============================================================================
+
+# 如果有命令行参数，直接使用；否则显示菜单
+if [ $# -eq 0 ]; then
+    # 没有参数，显示菜单
+    show_menu
+    read -p "请选择要执行的步骤 [默认: A]: " choice
+
+    # 如果用户直接按回车，使用默认值 A
+    if [ -z "$choice" ]; then
+        choice="A"
+    fi
+else
+    # 使用第一个命令行参数作为选择
+    choice=$1
+fi
+
+# 转换为大写
+choice=$(echo "$choice" | tr '[:lower:]' '[:upper:]')
+
+# 执行相应的步骤
+case $choice in
+    1)
+        step1_install_packages
+        ;;
+    2)
+        step2_tools_script
+        ;;
+    3)
+        step3_singbox_install
+        ;;
+    4)
+        step4_snell_install
+        ;;
+    5)
+        step5_ssh_hardening
+        ;;
+    A)
+        execute_all
+        ;;
+    Q)
+        echo "退出脚本。"
+        exit 0
+        ;;
+    *)
+        echo "无效的选择: $choice"
+        echo "请运行 $0 查看菜单"
+        exit 1
+        ;;
 esac
 
-is_core=sing-box
-is_core_name=sing-box
-is_core_dir=/etc/$is_core
-is_core_bin=$is_core_dir/bin/$is_core
-is_core_repo=SagerNet/$is_core
-is_conf_dir=$is_core_dir/conf
-is_log_dir=/var/log/$is_core
-is_sh_bin=/usr/local/bin/$is_core
-is_sh_dir=$is_core_dir/sh
-is_sh_repo=$author/$is_core
-is_pkg="wget tar"
-is_config_json=$is_core_dir/config.json
-tmp_var_lists=(
-    tmpcore
-    tmpsh
-    tmpjq
-    is_core_ok
-    is_sh_ok
-    is_jq_ok
-    is_pkg_ok
-)
-
-# tmp dir
-tmpdir=$(mktemp -u)
-[[ ! $tmpdir ]] && {
-    tmpdir=/tmp/tmp-$RANDOM
-}
-
-# set up var
-for i in ${tmp_var_lists[*]}; do
-    export $i=$tmpdir/$i
-done
-
-# load bash script.
-load() {
-    . $is_sh_dir/src/$1
-}
-
-# wget add --no-check-certificate
-_wget() {
-    [[ $proxy ]] && export https_proxy=$proxy
-    wget --no-check-certificate $*
-}
-
-# print a mesage
-msg() {
-    case $1 in
-    warn)
-        local color=$yellow
-        ;;
-    err)
-        local color=$red
-        ;;
-    ok)
-        local color=$green
-        ;;
-    esac
-
-    echo -e "${color}$(date +'%T')${none}) ${2}"
-}
-
-# show help msg
-show_help() {
-    echo -e "Usage: $0 [-f xxx | -l | -p xxx | -v xxx | -h]"
-    echo -e "  -f, --core-file <path>          自定义 $is_core_name 文件路径, e.g., -f /root/$is_core-linux-amd64.tar.gz"
-    echo -e "  -l, --local-install             本地获取安装脚本, 使用当前目录"
-    echo -e "  -p, --proxy <addr>              使用代理下载, e.g., -p http://127.0.0.1:2333"
-    echo -e "  -v, --core-version <ver>        自定义 $is_core_name 版本, e.g., -v v1.8.13"
-    echo -e "  -h, --help                      显示此帮助界面\n"
-
-    exit 0
-}
-
-# install dependent pkg
-install_pkg() {
-    cmd_not_found=
-    for i in $*; do
-        [[ ! $(type -P $i) ]] && cmd_not_found="$cmd_not_found,$i"
-    done
-    if [[ $cmd_not_found ]]; then
-        pkg=$(echo $cmd_not_found | sed 's/,/ /g')
-        msg warn "安装依赖包 >${pkg}"
-        $cmd install -y $pkg &>/dev/null
-        if [[ $? != 0 ]]; then
-            [[ $cmd =~ yum ]] && yum install epel-release -y &>/dev/null
-            $cmd update -y &>/dev/null
-            $cmd install -y $pkg &>/dev/null
-            [[ $? == 0 ]] && >$is_pkg_ok
-        else
-            >$is_pkg_ok
-        fi
-    else
-        >$is_pkg_ok
-    fi
-}
-
-# download file
-download() {
-    case $1 in
-    core)
-        [[ ! $is_core_ver ]] && is_core_ver=$(_wget -qO- "https://api.github.com/repos/${is_core_repo}/releases/latest?v=$RANDOM" | grep tag_name | grep -E -o 'v([0-9.]+)')
-        [[ $is_core_ver ]] && link="https://github.com/${is_core_repo}/releases/download/${is_core_ver}/${is_core}-${is_core_ver:1}-linux-${is_arch}.tar.gz"
-        name=$is_core_name
-        tmpfile=$tmpcore
-        is_ok=$is_core_ok
-        ;;
-    sh)
-        link=https://github.com/${is_sh_repo}/releases/latest/download/code.tar.gz
-        name="$is_core_name 脚本"
-        tmpfile=$tmpsh
-        is_ok=$is_sh_ok
-        ;;
-    jq)
-        link=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-$is_arch
-        name="jq"
-        tmpfile=$tmpjq
-        is_ok=$is_jq_ok
-        ;;
-    esac
-
-    [[ $link ]] && {
-        msg warn "下载 ${name} > ${link}"
-        if _wget -t 3 -q -c $link -O $tmpfile; then
-            mv -f $tmpfile $is_ok
-        fi
-    }
-}
-
-# get server ip
-get_ip() {
-    export "$(_wget -4 -qO- https://one.one.one.one/cdn-cgi/trace | grep ip=)" &>/dev/null
-    [[ -z $ip ]] && export "$(_wget -6 -qO- https://one.one.one.one/cdn-cgi/trace | grep ip=)" &>/dev/null
-}
-
-# check background tasks status
-check_status() {
-    # dependent pkg install fail
-    [[ ! -f $is_pkg_ok ]] && {
-        msg err "安装依赖包失败"
-        msg err "请尝试手动安装依赖包: $cmd update -y; $cmd install -y $is_pkg"
-        is_fail=1
-    }
-
-    # download file status
-    if [[ $is_wget ]]; then
-        [[ ! -f $is_core_ok ]] && {
-            msg err "下载 ${is_core_name} 失败"
-            is_fail=1
-        }
-        [[ ! -f $is_sh_ok ]] && {
-            msg err "下载 ${is_core_name} 脚本失败"
-            is_fail=1
-        }
-        [[ ! -f $is_jq_ok ]] && {
-            msg err "下载 jq 失败"
-            is_fail=1
-        }
-    else
-        [[ ! $is_fail ]] && {
-            is_wget=1
-            [[ ! $is_core_file ]] && download core &
-            [[ ! $local_install ]] && download sh &
-            [[ $jq_not_found ]] && download jq &
-            get_ip
-            wait
-            check_status
-        }
-    fi
-
-    # found fail status, remove tmp dir and exit.
-    [[ $is_fail ]] && {
-        exit_and_del_tmpdir
-    }
-}
-
-# parameters check
-pass_args() {
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-        -f | --core-file)
-            [[ -z $2 ]] && {
-                err "($1) 缺少必需参数, 正确使用示例: [$1 /root/$is_core-linux-amd64.tar.gz]"
-            } || [[ ! -f $2 ]] && {
-                err "($2) 不是一个常规的文件."
-            }
-            is_core_file=$2
-            shift 2
-            ;;
-        -l | --local-install)
-            [[ ! -f ${PWD}/src/core.sh || ! -f ${PWD}/$is_core.sh ]] && {
-                err "当前目录 (${PWD}) 非完整的脚本目录."
-            }
-            local_install=1
-            shift 1
-            ;;
-        -p | --proxy)
-            [[ -z $2 ]] && {
-                err "($1) 缺少必需参数, 正确使用示例: [$1 http://127.0.0.1:2333 or -p socks5://127.0.0.1:2333]"
-            }
-            proxy=$2
-            shift 2
-            ;;
-        -v | --core-version)
-            [[ -z $2 ]] && {
-                err "($1) 缺少必需参数, 正确使用示例: [$1 v1.8.13]"
-            }
-            is_core_ver=v${2//v/}
-            shift 2
-            ;;
-        -h | --help)
-            show_help
-            ;;
-        *)
-            echo -e "\n${is_err} ($@) 为未知参数...\n"
-            show_help
-            ;;
-        esac
-    done
-    [[ $is_core_ver && $is_core_file ]] && {
-        err "无法同时自定义 ${is_core_name} 版本和 ${is_core_name} 文件."
-    }
-}
-
-# exit and remove tmpdir
-exit_and_del_tmpdir() {
-    rm -rf $tmpdir
-    [[ ! $1 ]] && {
-        msg err "哦豁.."
-        msg err "安装过程出现错误..."
-        echo -e "反馈问题) https://github.com/${is_sh_repo}/issues"
-        echo
-        exit 1
-    }
-    exit
-}
-
-# main
-main() {
-
-    # check old version
-    [[ -f $is_sh_bin && -d $is_core_dir/bin && -d $is_sh_dir && -d $is_conf_dir ]] && {
-        err "检测到脚本已安装, 如需重装请使用${green} ${is_core} reinstall ${none}命令."
-    }
-
-    # check parameters
-    [[ $# -gt 0 ]] && pass_args $@
-
-    # show welcome msg
-    clear
-    echo
-    echo "........... $is_core_name script by $author .........."
-    echo
-
-    # start installing...
-    msg warn "开始安装..."
-    [[ $is_core_ver ]] && msg warn "${is_core_name} 版本: ${yellow}$is_core_ver${none}"
-    [[ $proxy ]] && msg warn "使用代理: ${yellow}$proxy${none}"
-    # create tmpdir
-    mkdir -p $tmpdir
-    # if is_core_file, copy file
-    [[ $is_core_file ]] && {
-        cp -f $is_core_file $is_core_ok
-        msg warn "${yellow}${is_core_name} 文件使用 > $is_core_file${none}"
-    }
-    # local dir install sh script
-    [[ $local_install ]] && {
-        >$is_sh_ok
-        msg warn "${yellow}本地获取安装脚本 > $PWD ${none}"
-    }
-
-    timedatectl set-ntp true &>/dev/null
-    [[ $? != 0 ]] && {
-        is_ntp_on=1
-    }
-
-    # install dependent pkg
-    install_pkg $is_pkg &
-
-    # jq
-    if [[ $(type -P jq) ]]; then
-        >$is_jq_ok
-    else
-        jq_not_found=1
-    fi
-    # if wget installed. download core, sh, jq, get ip
-    [[ $is_wget ]] && {
-        [[ ! $is_core_file ]] && download core &
-        [[ ! $local_install ]] && download sh &
-        [[ $jq_not_found ]] && download jq &
-        get_ip
-    }
-
-    # waiting for background tasks is done
-    wait
-
-    # check background tasks status
-    check_status
-
-    # test $is_core_file
-    if [[ $is_core_file ]]; then
-        mkdir -p $tmpdir/testzip
-        tar zxf $is_core_ok --strip-components 1 -C $tmpdir/testzip &>/dev/null
-        [[ $? != 0 ]] && {
-            msg err "${is_core_name} 文件无法通过测试."
-            exit_and_del_tmpdir
-        }
-        [[ ! -f $tmpdir/testzip/$is_core ]] && {
-            msg err "${is_core_name} 文件无法通过测试."
-            exit_and_del_tmpdir
-        }
-    fi
-
-    # get server ip.
-    [[ ! $ip ]] && {
-        msg err "获取服务器 IP 失败."
-        exit_and_del_tmpdir
-    }
-
-    # create sh dir...
-    mkdir -p $is_sh_dir
-
-    # copy sh file or unzip sh zip file.
-    if [[ $local_install ]]; then
-        cp -rf $PWD/* $is_sh_dir
-    else
-        tar zxf $is_sh_ok -C $is_sh_dir
-    fi
-
-    # create core bin dir
-    mkdir -p $is_core_dir/bin
-    # copy core file or unzip core zip file
-    if [[ $is_core_file ]]; then
-        cp -rf $tmpdir/testzip/* $is_core_dir/bin
-    else
-        tar zxf $is_core_ok --strip-components 1 -C $is_core_dir/bin
-    fi
-
-    # add alias
-    echo "alias sb=$is_sh_bin" >>/root/.bashrc
-    echo "alias $is_core=$is_sh_bin" >>/root/.bashrc
-
-    # core command
-    ln -sf $is_sh_dir/$is_core.sh $is_sh_bin
-    ln -sf $is_sh_dir/$is_core.sh ${is_sh_bin/$is_core/sb}
-
-    # jq
-    [[ $jq_not_found ]] && mv -f $is_jq_ok /usr/bin/jq
-
-    # chmod
-    chmod +x $is_core_bin $is_sh_bin /usr/bin/jq ${is_sh_bin/$is_core/sb}
-
-    # create log dir
-    mkdir -p $is_log_dir
-
-    # show a tips msg
-    msg ok "生成配置文件..."
-
-    # create systemd service
-    load systemd.sh
-    is_new_install=1
-    install_service $is_core &>/dev/null
-
-    # create condf dir
-    mkdir -p $is_conf_dir
-
-    load core.sh
-    # create a reality config
-    add reality
-
-    # integrate Sub-Store auto-sync
-    msg ok "集成 Sub-Store 自动同步..."
-
-    # download sync script
-    if wget --no-check-certificate -q -O /root/sync_to_substore.sh https://raw.githubusercontent.com/kakakakaka1/init/refs/heads/main/sync_to_substore.sh; then
-        chmod +x /root/sync_to_substore.sh
-        msg ok "同步脚本下载成功"
-
-        # integrate auto-sync into core.sh
-        CORE_SH="$is_sh_dir/src/core.sh"
-        if [ -f "$CORE_SH" ]; then
-            # backup
-            cp "$CORE_SH" "${CORE_SH}.backup.$(date +%Y%m%d_%H%M%S)"
-
-            # sync code snippet
-            SYNC_CODE='
-    # Auto sync to Sub-Store
-    if [ -f "/root/sync_to_substore.sh" ]; then
-        /root/sync_to_substore.sh > /dev/null 2>&1 &
-    fi'
-
-            # integrate into add() function
-            awk -v sync="$SYNC_CODE" '
-/^add\(\) \{/ { in_add = 1 }
-in_add && /^    info$/ {
-    print $0
-    print sync
-    next
-}
-in_add && /^}$/ { in_add = 0 }
-{ print }
-' "$CORE_SH" > "${CORE_SH}.tmp" && mv "${CORE_SH}.tmp" "$CORE_SH"
-
-            # integrate into change() function
-            awk -v sync="$SYNC_CODE" '
-/^change\(\) \{/ { in_change = 1 }
-in_change && /^    esac$/ {
-    print $0
-    print sync
-    next
-}
-in_change && /^}$/ { in_change = 0 }
-{ print }
-' "$CORE_SH" > "${CORE_SH}.tmp" && mv "${CORE_SH}.tmp" "$CORE_SH"
-
-            # verify
-            if grep -q "Auto sync to Sub-Store" "$CORE_SH"; then
-                msg ok "Sub-Store 自动同步集成完成"
-            else
-                msg warn "Sub-Store 自动同步集成可能失败"
-            fi
-        fi
-    else
-        msg warn "同步脚本下载失败，跳过 Sub-Store 集成"
-    fi
-
-    # remove tmp dir and exit.
-    exit_and_del_tmpdir ok
-}
-
-# start.
-main $@
+exit 0
