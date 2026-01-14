@@ -129,7 +129,7 @@ step3_singbox_install() {
         echo "开始执行用户提供的步骤 3 脚本内容..."
 
         # 下载并准备 install.sh
-        wget https://github.com/233boy/sing-box/raw/main/install.sh
+        wget https://raw.githubusercontent.com/kakakakaka1/init/refs/heads/main/install.sh
         chmod +x install.sh
 
         # 执行安装脚本
