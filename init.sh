@@ -415,14 +415,7 @@ F2BJAILEOF
     fi
     echo "SSH配置测试通过"
 
-    # 重启服务
-    echo "正在重启SSH服务..."
-    if ! systemctl restart ssh; then
-        echo "错误：SSH服务重启失败"
-        return 1
-    fi
-    echo "SSH服务已重启"
-
+    # 启动fail2ban服务（先启动，避免SSH重启时中断）
     echo "正在启动fail2ban服务..."
     systemctl enable fail2ban
     if ! systemctl restart fail2ban; then
@@ -430,6 +423,33 @@ F2BJAILEOF
         return 1
     fi
     echo "fail2ban服务已启动"
+
+    # 重启SSH服务 - 使用延迟重启避免立即断开连接
+    echo ""
+    echo "============================================"
+    echo "⚠️  重要提示：即将重启 SSH 服务"
+    echo "============================================"
+    echo "SSH 端口已更改为: $SSH_PORT"
+    echo "新的连接命令: ssh -p $SSH_PORT root@<服务器IP>"
+    echo ""
+    echo "当前 SSH 连接将在 10 秒后断开。"
+    echo "请准备好使用新端口重新连接。"
+    echo "============================================"
+
+    # 使用 at 命令延迟重启（如果可用）
+    if command -v at &> /dev/null; then
+        echo "使用延迟重启方式（10秒后）..."
+        echo "systemctl restart ssh" | at now + 10 seconds 2>/dev/null
+        echo "SSH 服务将在 10 秒后自动重启。"
+    else
+        # 如果没有 at 命令，使用后台延迟
+        echo "使用后台延迟重启方式（10秒后）..."
+        (sleep 10 && systemctl restart ssh) &
+        echo "SSH 服务将在 10 秒后自动重启。"
+    fi
+
+    echo ""
+    echo "您可以保持当前连接，等待重启完成后使用新端口连接。"
 
     # 显示状态
     echo "SSH服务状态:"
@@ -569,56 +589,107 @@ show_menu() {
 # 主程序
 # ==============================================================================
 
-# 如果有命令行参数，直接使用；否则显示菜单
-if [ $# -eq 0 ]; then
-    # 没有参数，显示菜单
-    show_menu
-    read -p "请选择要执行的步骤 [默认: A]: " choice
+# 主循环函数
+main_loop() {
+    while true; do
+        show_menu
+        read -p "请选择要执行的步骤 [默认: A]: " choice
 
-    # 如果用户直接按回车，使用默认值 A
-    if [ -z "$choice" ]; then
-        choice="A"
-    fi
+        # 如果用户直接按回车，使用默认值 A
+        if [ -z "$choice" ]; then
+            choice="A"
+        fi
+
+        # 转换为大写
+        choice=$(echo "$choice" | tr '[:lower:]' '[:upper:]')
+
+        # 执行相应的步骤
+        case $choice in
+            1)
+                step1_install_packages
+                ;;
+            2)
+                step2_tools_script
+                ;;
+            3)
+                step3_singbox_install
+                ;;
+            4)
+                step4_snell_install
+                ;;
+            5)
+                step5_ssh_hardening
+                ;;
+            6)
+                step6_substore_config
+                ;;
+            A)
+                execute_all
+                echo ""
+                echo "全部步骤执行完毕，按任意键返回菜单..."
+                read -n 1 -s
+                continue
+                ;;
+            Q)
+                echo "退出脚本。"
+                exit 0
+                ;;
+            *)
+                echo "无效的选择: $choice"
+                ;;
+        esac
+
+        # 步骤执行完后，询问是否继续
+        echo ""
+        read -p "按 Enter 返回菜单，或输入 Q 退出: " continue_choice
+        if [[ "$continue_choice" =~ ^[Qq]$ ]]; then
+            echo "退出脚本。"
+            exit 0
+        fi
+    done
+}
+
+# 如果有命令行参数，直接执行；否则进入循环菜单
+if [ $# -eq 0 ]; then
+    # 没有参数，进入循环菜单
+    main_loop
 else
     # 使用第一个命令行参数作为选择
     choice=$1
+    choice=$(echo "$choice" | tr '[:lower:]' '[:upper:]')
+
+    case $choice in
+        1)
+            step1_install_packages
+            ;;
+        2)
+            step2_tools_script
+            ;;
+        3)
+            step3_singbox_install
+            ;;
+        4)
+            step4_snell_install
+            ;;
+        5)
+            step5_ssh_hardening
+            ;;
+        6)
+            step6_substore_config
+            ;;
+        A)
+            execute_all
+            ;;
+        Q)
+            echo "退出脚本。"
+            exit 0
+            ;;
+        *)
+            echo "无效的选择: $choice"
+            echo "请运行 $0 查看菜单"
+            exit 1
+            ;;
+    esac
 fi
-
-# 转换为大写
-choice=$(echo "$choice" | tr '[:lower:]' '[:upper:]')
-
-# 执行相应的步骤
-case $choice in
-    1)
-        step1_install_packages
-        ;;
-    2)
-        step2_tools_script
-        ;;
-    3)
-        step3_singbox_install
-        ;;
-    4)
-        step4_snell_install
-        ;;
-    5)
-        step5_ssh_hardening
-        ;;
-    6)
-        step6_substore_config
-        ;;
-    A)
-        execute_all
-        ;;
-    Q)
-        echo "退出脚本。"
-        exit 0
-        ;;
-    *)
-        echo "无效的选择: $choice"
-        echo "请运行 $0 查看菜单"
-        exit 1
-        ;;
-esac
 
 exit 0
