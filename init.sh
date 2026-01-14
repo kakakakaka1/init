@@ -528,42 +528,134 @@ step6_substore_config() {
 # 执行所有步骤
 execute_all() {
     echo "===== 开始执行所有步骤 ====="
+    echo "提示：每个步骤执行完后会暂停，按任意键继续下一步"
+    echo ""
 
+    local start_time=$(date +%s)
+    local failed_steps=""
+
+    # 步骤 1
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "▶ 正在执行步骤 1/6: 安装必备软件包"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     step1_install_packages
     if [ $? -ne 0 ]; then
-        echo "步骤 1 失败，停止执行。"
-        exit 1
+        echo "❌ 步骤 1 失败"
+        failed_steps="$failed_steps 1"
+        read -p "按 Enter 继续执行下一步，或输入 Q 退出: " choice
+        [[ "$choice" =~ ^[Qq]$ ]] && return 1
+    else
+        echo "✅ 步骤 1 完成"
+        echo ""
+        read -n 1 -s -p "按任意键继续下一步..."
+        echo ""
     fi
 
+    # 步骤 2
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "▶ 正在执行步骤 2/6: 下载并执行工具脚本"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     step2_tools_script
     if [ $? -ne 0 ]; then
-        echo "步骤 2 失败，停止执行。"
-        exit 1
+        echo "❌ 步骤 2 失败"
+        failed_steps="$failed_steps 2"
+        read -p "按 Enter 继续执行下一步，或输入 Q 退出: " choice
+        [[ "$choice" =~ ^[Qq]$ ]] && return 1
+    else
+        echo "✅ 步骤 2 完成"
+        echo ""
+        read -n 1 -s -p "按任意键继续下一步..."
+        echo ""
     fi
 
+    # 步骤 3
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "▶ 正在执行步骤 3/6: sing-box 安装和配置"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     step3_singbox_install
     if [ $? -ne 0 ]; then
-        echo "步骤 3 失败，停止执行。"
-        exit 1
+        echo "❌ 步骤 3 失败"
+        failed_steps="$failed_steps 3"
+        read -p "按 Enter 继续执行下一步，或输入 Q 退出: " choice
+        [[ "$choice" =~ ^[Qq]$ ]] && return 1
+    else
+        echo "✅ 步骤 3 完成"
+        echo ""
+        read -n 1 -s -p "按任意键继续下一步..."
+        echo ""
     fi
 
+    # 步骤 4
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "▶ 正在执行步骤 4/6: 下载并执行 snell.sh"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     step4_snell_install
     if [ $? -ne 0 ]; then
-        echo "步骤 4 失败，停止执行。"
-        exit 1
+        echo "❌ 步骤 4 失败"
+        failed_steps="$failed_steps 4"
+        read -p "按 Enter 继续执行下一步，或输入 Q 退出: " choice
+        [[ "$choice" =~ ^[Qq]$ ]] && return 1
+    else
+        echo "✅ 步骤 4 完成"
+        echo ""
+        read -n 1 -s -p "按任意键继续下一步..."
+        echo ""
     fi
 
+    # 步骤 5
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "▶ 正在执行步骤 5/6: SSH 安全加固"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     step5_ssh_hardening
     if [ $? -ne 0 ]; then
-        echo "步骤 5 失败，停止执行。"
-        exit 1
+        echo "❌ 步骤 5 失败"
+        failed_steps="$failed_steps 5"
+        read -p "按 Enter 继续执行下一步，或输入 Q 退出: " choice
+        [[ "$choice" =~ ^[Qq]$ ]] && return 1
+    else
+        echo "✅ 步骤 5 完成"
+        echo ""
+        read -n 1 -s -p "按任意键继续下一步..."
+        echo ""
     fi
 
+    # 步骤 6
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "▶ 正在执行步骤 6/6: Sub-Store 自动管理"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     step6_substore_config
     if [ $? -ne 0 ]; then
-        echo "步骤 6 失败，但继续执行。"
+        echo "❌ 步骤 6 失败（非关键步骤）"
+        failed_steps="$failed_steps 6"
+    else
+        echo "✅ 步骤 6 完成"
     fi
 
+    # 计算总执行时间
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    local minutes=$((duration / 60))
+    local seconds=$((duration % 60))
+
+    # 显示执行摘要
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "📊 执行摘要"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "总执行时间: ${minutes}分${seconds}秒"
+
+    if [ -z "$failed_steps" ]; then
+        echo "状态: ✅ 所有步骤执行成功"
+    else
+        echo "状态: ⚠️  部分步骤失败"
+        echo "失败的步骤:$failed_steps"
+    fi
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "===== 所有自动化步骤已执行完毕。 ====="
 }
