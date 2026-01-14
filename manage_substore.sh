@@ -92,11 +92,15 @@ extract_singbox_nodes() {
         return 0
     fi
 
-    for config_file in "$SING_BOX_CONF_DIR"/*.json 2>/dev/null; do
+    local config_files
+    config_files=$(ls "$SING_BOX_CONF_DIR"/*.json 2>/dev/null || true)
+
+    for config_file in $config_files; do
         [ ! -f "$config_file" ] && continue
 
         local config_name=$(basename "$config_file" .json)
-        local node_url=$(sing-box url "$config_name" 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep -E "^(ss|vless|vmess|trojan|hysteria|hysteria2)://" || echo "")
+        local node_url
+        node_url=$(sing-box url "$config_name" 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep -E '^(ss|vless|vmess|trojan|hysteria|hysteria2)://' 2>/dev/null || echo "")
 
         if [ -n "$node_url" ]; then
             # 修改备注名，添加前缀
@@ -134,12 +138,17 @@ extract_snell_nodes() {
         return 0
     fi
 
-    for snell_conf in "$SNELL_CONF_DIR"/*.conf 2>/dev/null; do
+    local snell_files
+    snell_files=$(ls "$SNELL_CONF_DIR"/*.conf 2>/dev/null || true)
+
+    for snell_conf in $snell_files; do
         [ ! -f "$snell_conf" ] && continue
 
         local snell_name=$(basename "$snell_conf" .conf)
-        local port=$(grep "^listen" "$snell_conf" | awk -F':' '{print $NF}')
-        local psk=$(grep "^psk" "$snell_conf" | awk '{print $NF}')
+        local port
+        local psk
+        port=$(grep "^listen" "$snell_conf" | awk -F':' '{print $NF}')
+        psk=$(grep "^psk" "$snell_conf" | awk '{print $NF}')
 
         if [ -n "$port" ] && [ -n "$psk" ]; then
             # 生成 Surge 格式的 Snell 节点（v4 和 v5）
