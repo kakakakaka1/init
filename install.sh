@@ -489,10 +489,11 @@ INJECT_EOF
         rm /tmp/inject_substore.sh
 
         # verify
-        if grep -q "Auto sync to Sub-Store" "$CORE_SH" && grep -q "Auto delete from Sub-Store" "$CORE_SH"; then
+        sync_count=$(grep -c "Auto sync to Sub-Store" "$CORE_SH" 2>/dev/null || echo "0")
+        if [ "$sync_count" -ge 2 ]; then
             msg ok "Sub-Store 自动管理集成完成"
         else
-            msg warn "Sub-Store 集成可能不完整"
+            msg warn "Sub-Store 集成可能不完整（找到 $sync_count 处自动同步代码，期望 2 处）"
         fi
     fi
 
