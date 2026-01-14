@@ -166,7 +166,7 @@ step4_snell_install() {
     echo ""
     echo "===== 步骤 4: 下载并执行 snell.sh 脚本 ====="
 
-    SNELL_SCRIPT_URL="https://raw.githubusercontent.com/jinqians/snell.sh/main/snell.sh"
+    SNELL_SCRIPT_URL="https://raw.githubusercontent.com/kakakakaka1/init/refs/heads/main/snell.sh"
     SNELL_SCRIPT_FILENAME="snell.sh"
     SNELL_SCRIPT_LOCAL_PATH="/root/${SNELL_SCRIPT_FILENAME}"
     # 预设输入：先输入 "1" 然后回车，然后再输入1回车 再输入 "20000" 然后回车，然后回车，然后回车，最后输入 "0" 然后回车
