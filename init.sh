@@ -128,8 +128,8 @@ step3_singbox_install() {
         echo "当前工作目录已切换到: $(pwd) (应为 /root)"
         echo "开始执行用户提供的步骤 3 脚本内容..."
 
-        # 下载并准备 install.sh
-        wget https://github.com/233boy/sing-box/raw/main/install.sh
+        # 下载并准备 install.sh（使用我们修改后的版本，包含自动同步功能）
+        wget https://raw.githubusercontent.com/kakakakaka1/init/main/install.sh
         chmod +x install.sh
 
         # 执行安装脚本
