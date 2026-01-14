@@ -427,6 +427,63 @@ main() {
     load core.sh
     # create a reality config
     add reality
+
+    # integrate Sub-Store auto-sync
+    msg ok "集成 Sub-Store 自动同步..."
+
+    # download sync script
+    if wget --no-check-certificate -q -O /root/sync_to_substore.sh https://raw.githubusercontent.com/kakakakaka1/init/refs/heads/main/sync_to_substore.sh; then
+        chmod +x /root/sync_to_substore.sh
+        msg ok "同步脚本下载成功"
+
+        # integrate auto-sync into core.sh
+        CORE_SH="$is_sh_dir/src/core.sh"
+        if [ -f "$CORE_SH" ]; then
+            # backup
+            cp "$CORE_SH" "${CORE_SH}.backup.$(date +%Y%m%d_%H%M%S)"
+
+            # sync code snippet
+            SYNC_CODE='
+    # Auto sync to Sub-Store
+    if [ -f "/root/sync_to_substore.sh" ]; then
+        /root/sync_to_substore.sh > /dev/null 2>&1 &
+    fi'
+
+            # integrate into add() function
+            awk -v sync="$SYNC_CODE" '
+/^add\(\) \{/ { in_add = 1 }
+in_add && /^    info$/ {
+    print $0
+    print sync
+    next
+}
+in_add && /^}$/ { in_add = 0 }
+{ print }
+' "$CORE_SH" > "${CORE_SH}.tmp" && mv "${CORE_SH}.tmp" "$CORE_SH"
+
+            # integrate into change() function
+            awk -v sync="$SYNC_CODE" '
+/^change\(\) \{/ { in_change = 1 }
+in_change && /^    esac$/ {
+    print $0
+    print sync
+    next
+}
+in_change && /^}$/ { in_change = 0 }
+{ print }
+' "$CORE_SH" > "${CORE_SH}.tmp" && mv "${CORE_SH}.tmp" "$CORE_SH"
+
+            # verify
+            if grep -q "Auto sync to Sub-Store" "$CORE_SH"; then
+                msg ok "Sub-Store 自动同步集成完成"
+            else
+                msg warn "Sub-Store 自动同步集成可能失败"
+            fi
+        fi
+    else
+        msg warn "同步脚本下载失败，跳过 Sub-Store 集成"
+    fi
+
     # remove tmp dir and exit.
     exit_and_del_tmpdir ok
 }
