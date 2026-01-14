@@ -88,7 +88,7 @@ extract_singbox_nodes() {
     local count=0
 
     if [ ! -d "$SING_BOX_CONF_DIR" ] || ! command -v sing-box &> /dev/null; then
-        echo ""
+        echo "$count|"
         return 0
     fi
 
@@ -100,7 +100,11 @@ extract_singbox_nodes() {
 
         local config_name=$(basename "$config_file" .json)
         local node_url
-        node_url=$(sing-box url "$config_name" 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep -E '^(ss|vless|vmess|trojan|hysteria|hysteria2)://' 2>/dev/null || echo "")
+        # sing-box url 输出包含很多额外信息，需要过滤
+        node_url=$(sing-box url "$config_name" 2>&1 | \
+            sed 's/\x1b\[[0-9;]*m//g' | \
+            grep -oE '(ss|vless|vmess|trojan|hysteria|hysteria2)://[^[:space:]]+' | \
+            head -1 || echo "")
 
         if [ -n "$node_url" ]; then
             # 修改备注名，添加前缀
@@ -116,8 +120,7 @@ extract_singbox_nodes() {
         fi
     done
 
-    echo "$all_nodes"
-    return $count
+    echo "$count|$all_nodes"
 }
 
 # 提取 Snell 节点
@@ -126,7 +129,7 @@ extract_snell_nodes() {
     local count=0
 
     if [ ! -d "$SNELL_CONF_DIR" ]; then
-        echo ""
+        echo "$count|"
         return 0
     fi
 
@@ -134,7 +137,7 @@ extract_snell_nodes() {
     local server_ip=$(curl -s4 --max-time 3 https://api.ipify.org 2>/dev/null || echo "")
 
     if [ -z "$server_ip" ]; then
-        echo "" >&2
+        echo "$count|"
         return 0
     fi
 
@@ -162,8 +165,7 @@ ${node_v5}
         fi
     done
 
-    echo "$all_nodes"
-    return $count
+    echo "$count|$all_nodes"
 }
 
 # ============================================================
@@ -197,11 +199,13 @@ sync_nodes() {
     echo ""
     echo -e "${cyan}[2/4] 提取本地节点...${none}"
 
-    local singbox_nodes=$(extract_singbox_nodes)
-    local singbox_count=$?
+    local singbox_result=$(extract_singbox_nodes)
+    local singbox_count=$(echo "$singbox_result" | head -1 | cut -d'|' -f1)
+    local singbox_nodes=$(echo "$singbox_result" | cut -d'|' -f2-)
 
-    local snell_nodes=$(extract_snell_nodes)
-    local snell_count=$?
+    local snell_result=$(extract_snell_nodes)
+    local snell_count=$(echo "$snell_result" | head -1 | cut -d'|' -f1)
+    local snell_nodes=$(echo "$snell_result" | cut -d'|' -f2-)
 
     local all_local_nodes="${singbox_nodes}${snell_nodes}"
     local total_local=$((singbox_count + snell_count))
