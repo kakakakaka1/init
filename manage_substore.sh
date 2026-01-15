@@ -16,11 +16,11 @@ set -e
 # 配置区域
 # ============================================================
 
-# Sub-Store API 基础地址
-SUBSTORE_API_BASE="https://dy.rar.li/c63dc7a823f46c070369df9bbff370812f1948d3e86af1fecc452dc397f2d06f"
+# Sub-Store API 基础地址（需要配置）
+SUBSTORE_API_BASE="YOUR_SUBSTORE_API_URL"
 
-# 目标订阅名称
-SUB_NAME="backet"
+# 目标订阅名称（需要配置）
+SUB_NAME="YOUR_SUBSCRIPTION_NAME"
 
 # sing-box 配置目录
 SING_BOX_CONF_DIR="/etc/sing-box/conf"
