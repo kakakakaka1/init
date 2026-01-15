@@ -182,10 +182,10 @@ https://raw.githubusercontent.com/kakakakaka1/init/main/manage_substore_new.sh
 ```
 
 **新增命令**:
-- `singbox`: 执行 sing-box 并自动管理 Sub-Store 推荐使用singbox来管理233脚本(会自动推送或删除节点到sub-store)
+- `singbox`: 执行 sing-box 并自动管理 Sub-Store 
 - 也可以手动执行 bash manage_substore_new.sh 会将本地的sing-box和snell创建的或者删除的节点推送到sub-store
 - snell 安装后不要动它 如果要重装snell或者多用户后需要手动运行bash manage_substore_new.sh 
-- (snell除了第次一安装剩下的不会同步) 使用sing-box 也不会自动同步 使用singbox命令穿件删除节点可以自动同步到substore(做了alias)
+- (snell除了第次一安装剩下的不会同步) 使用sing-box 也不会自动同步 使用singbox命令创建删除节点可以自动同步到substore(做了alias)
 ---
 
 ## 使用场景
