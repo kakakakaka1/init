@@ -521,6 +521,18 @@ step6_substore_config() {
         echo "警告：首次同步失败，请检查配置。"
     fi
 
+    # 添加 singbox 别名
+    echo ""
+    echo "正在添加 singbox 别名..."
+    if ! grep -q "alias singbox=" ~/.bashrc 2>/dev/null; then
+        echo "alias singbox='sing-box; bash manage_substore.sh'" >> ~/.bashrc
+        echo "别名已添加。"
+    else
+        echo "别名已存在，跳过添加。"
+    fi
+    source ~/.bashrc
+    echo "现在可以使用 'singbox' 命令来管理节点。"
+
     echo "===== 步骤 6 完成。 ====="
     return 0
 }
