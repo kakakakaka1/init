@@ -1,0 +1,215 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# init_no_clash.sh
+# 仅包含原 init.sh 的步骤：1 + 2 + 5（不含 clash/sing-box/snell/substore）
+# 按要求：额外安装 sudo；写入 PS1 与 alias 到环境配置
+
+if [[ "$(id -u)" -ne 0 ]]; then
+  echo "错误：请用 root 运行（sudo bash init_no_clash.sh）"
+  exit 1
+fi
+
+SSH_PORT=50000
+BACKUP_DIR="/root/ssh_backup_$(date +%Y%m%d_%H%M%S)"
+
+step1_install_packages() {
+  echo "===== 步骤1：安装基础软件（含 curl + sudo） ====="
+  local pkgs="sudo curl vim wget telnet iperf3"
+
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y $pkgs
+
+  for p in $pkgs; do
+    dpkg -s "$p" >/dev/null 2>&1 || {
+      echo "错误：$p 安装失败"
+      return 1
+    }
+  done
+  echo "步骤1完成。"
+}
+
+step2_tools_script() {
+  echo "===== 步骤2：下载并执行 tools.sh（自动输入 2） ====="
+  local url="https://raw.githubusercontent.com/kakakakaka1/init/main/tools.sh"
+  local path="/root/tools.sh"
+
+  wget -q -O "$path" "$url"
+  chmod +x "$path"
+
+  printf "2\n" | "$path"
+  echo "步骤2完成。"
+}
+
+step_env_vars() {
+  echo "===== 环境变量与别名配置 ====="
+
+  # 全局生效
+  tee /etc/profile.d/custom_shell_env.sh >/dev/null <<'EOFENV'
+PS1='\[\033[01;31m\]\u\[\033[01;33m\]@\[\033[01;36m\]\h \[\033[01;33m\]\w \[\033[01;35m\]\$ \[\033[00m\]'
+alias ll='ls --color=auto -lAF'
+alias ls='ls --color=auto'
+EOFENV
+  chmod 644 /etc/profile.d/custom_shell_env.sh
+
+  # root 用户也追加一份（兼容某些环境不加载 /etc/profile.d）
+  if ! grep -q "alias ll='ls --color=auto -lAF'" /root/.bashrc 2>/dev/null; then
+    cat >> /root/.bashrc <<'EOFBASHRC'
+PS1='\[\033[01;31m\]\u\[\033[01;33m\]@\[\033[01;36m\]\h \[\033[01;33m\]\w \[\033[01;35m\]\$ \[\033[00m\]'
+alias ll='ls --color=auto -lAF'
+alias ls='ls --color=auto'
+EOFBASHRC
+  fi
+
+  echo "环境变量与别名已写入。"
+}
+
+step5_ssh_hardening() {
+  echo "===== 步骤5：SSH 安全加固 + Fail2ban ====="
+  mkdir -p "$BACKUP_DIR"
+
+  [[ -f /etc/ssh/sshd_config ]] && cp /etc/ssh/sshd_config "$BACKUP_DIR/sshd_config.backup"
+  [[ -f /etc/fail2ban/jail.local ]] && cp /etc/fail2ban/jail.local "$BACKUP_DIR/jail.local.backup"
+
+  DEBIAN_FRONTEND=noninteractive apt-get install -y fail2ban openssh-server
+
+  mkdir -p /root/.ssh
+  chmod 700 /root/.ssh
+  tee /root/.ssh/authorized_keys >/dev/null <<'EOFKEY'
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC2CNY7JG7dO3JVB0sCIfKJTtJH2F3JJ8pnv0Vh4TTUR6eY1UWOJx1PGU120tUu1Xt/UnSh4m/6phWEGqVBWemYhWF1pGbhzRBpbX99b/4Xd5o291ZBVNh6Hp5QCO424J4bOxA28CcmvwaHTf5MHaa4zsLtfZB7uE6kcuuL4I00EdsBWHH888CAtXv1MgfgCLAxiP5E5m1PnTE+tfZl9wRFRK99lBfi0BgSQH4dBtu8cDUCz7MPGDznbfOapSDRoWrKMQ1SQ2lE28EtpJvWzUJvJjhn79McbeKowpyIFMJhZGsp61b8K3GZIOjJte7N5B8XLoRfrKE5pbv/tXyK7b5l
+EOFKEY
+  chmod 600 /root/.ssh/authorized_keys
+
+  tee /etc/ssh/sshd_config >/dev/null <<'SSHEOF'
+Include /etc/ssh/sshd_config.d/*.conf
+Port 50000
+AddressFamily any
+ListenAddress 0.0.0.0
+ListenAddress ::
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+SyslogFacility AUTH
+LogLevel VERBOSE
+LoginGraceTime 60
+PermitRootLogin prohibit-password
+StrictModes yes
+MaxAuthTries 3
+MaxSessions 10
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+PasswordAuthentication no
+PermitEmptyPasswords no
+KbdInteractiveAuthentication no
+KerberosAuthentication no
+GSSAPIAuthentication no
+UsePAM yes
+AllowAgentForwarding yes
+AllowTcpForwarding yes
+GatewayPorts no
+X11Forwarding no
+PermitTTY yes
+PrintMotd no
+TCPKeepAlive yes
+PermitUserEnvironment no
+Compression delayed
+ClientAliveInterval 300
+ClientAliveCountMax 2
+UseDNS no
+PidFile /run/sshd.pid
+MaxStartups 10:30:100
+PermitTunnel no
+AcceptEnv LANG LC_*
+Subsystem sftp /usr/lib/openssh/sftp-server
+SSHEOF
+
+  tee /etc/fail2ban/filter.d/sshd-aggressive.conf >/dev/null <<'F2B1'
+[INCLUDES]
+before = common.conf
+[Definition]
+_daemon = sshd
+failregex = ^.*sshd.*authentication failure.*rhost=<HOST>.*$
+            ^.*sshd.*Failed password for .* from <HOST>.*$
+            ^.*sshd.*Failed password for invalid user .* from <HOST>.*$
+            ^.*sshd.*Invalid user .* from <HOST>.*$
+            ^.*sshd.*Connection closed by <HOST> port.*\[preauth\]$
+            ^.*sshd.*Did not receive identification string from <HOST>.*$
+            ^.*sshd.*Bad protocol version identification .* from <HOST>.*$
+            ^.*sshd.*error: kex_exchange_identification.*<HOST>.*$
+            ^.*sshd.*Connection reset by <HOST> port.*$
+ignoreregex =
+F2B1
+
+  tee /etc/fail2ban/filter.d/port-scan.conf >/dev/null <<'F2B2'
+[Definition]
+failregex = ^.*sshd.*: error: kex_exchange_identification: Connection closed by remote host <HOST>.*$
+            ^.*sshd.*: Did not receive identification string from <HOST>.*$
+            ^.*sshd.*: Bad protocol version identification.*from <HOST>.*$
+ignoreregex = ^.*127\.0\.0\.1.*$
+              ^.*::1.*$
+F2B2
+
+  tee /etc/fail2ban/jail.local >/dev/null <<'JAIL'
+[DEFAULT]
+bantime = 360000
+findtime = 60000
+maxretry = 3
+backend = systemd
+
+[sshd]
+enabled = true
+port = 50000
+filter = sshd-aggressive
+logpath = /var/log/auth.log
+backend = systemd
+maxretry = 2
+findtime = 315360000
+bantime = -1
+ignoreip = 127.0.0.1/8 ::1
+
+[port-scan]
+enabled = true
+port = all
+filter = port-scan
+logpath = /var/log/auth.log
+backend = systemd
+maxretry = 2
+findtime = 315360000
+bantime = -1
+ignoreip = 127.0.0.1/8 ::1
+
+[recidive]
+enabled = true
+filter = recidive
+logpath = /var/log/fail2ban.log
+bantime = 604800
+findtime = 86400
+maxretry = 2
+ignoreip = 127.0.0.1/8 ::1
+JAIL
+
+  sshd -t
+  systemctl enable fail2ban
+  systemctl restart fail2ban
+
+  echo "⚠️ SSH 将改为端口 ${SSH_PORT}，并禁用密码登录。"
+  echo "⚠️ 请确认公钥可用：ssh -p ${SSH_PORT} root@<IP>"
+
+  if command -v at >/dev/null 2>&1; then
+    echo "systemctl restart ssh" | at now + 10 seconds 2>/dev/null || (sleep 10 && systemctl restart ssh) &
+  else
+    (sleep 10 && systemctl restart ssh) &
+  fi
+
+  echo "步骤5完成。备份目录：$BACKUP_DIR"
+}
+
+main() {
+  step1_install_packages
+  step2_tools_script
+  step_env_vars
+  step5_ssh_hardening
+  echo "==== 全部完成：init_no_clash.sh ===="
+}
+
+main "$@"
