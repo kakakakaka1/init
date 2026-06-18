@@ -56,6 +56,48 @@ net.core.default_qdisc=fq
 net.ipv4.tcp_congestion_control=bbr
 EOF
 sysctl -p && sysctl --system
+
+# net.core.default_qdisc=fq 只影响之后新建的队列，不会自动替换当前网卡已有 qdisc。
+# 因此这里立即把所有非 lo 网卡切到 fq，并安装开机后重套服务，避免重启/网卡初始化后回到 fq_codel。
+cat >/usr/local/sbin/apply-network-qdisc-fq.sh <<'EOF'
+#!/usr/bin/env sh
+set -eu
+
+if ! command -v ip >/dev/null 2>&1 || ! command -v tc >/dev/null 2>&1; then
+  exit 0
+fi
+
+ip -o link show | awk -F': ' '$2 != "lo" {sub(/@.*/, "", $2); print $2}' | while read -r dev; do
+  [ -n "$dev" ] && tc qdisc replace dev "$dev" root fq 2>/dev/null || true
+done
+EOF
+chmod +x /usr/local/sbin/apply-network-qdisc-fq.sh
+/usr/local/sbin/apply-network-qdisc-fq.sh || true
+
+cat >/etc/systemd/system/apply-network-tuning.service <<'EOF'
+[Unit]
+Description=Apply network sysctl and qdisc tuning
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/sysctl -p /etc/sysctl.conf
+ExecStart=/usr/local/sbin/apply-network-qdisc-fq.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable --now apply-network-tuning.service >/dev/null 2>&1 || true
+
+sysctl net.core.default_qdisc net.ipv4.tcp_congestion_control 2>/dev/null || true
+if command -v ip >/dev/null 2>&1 && command -v tc >/dev/null 2>&1; then
+  ip -o link show | awk -F': ' '$2 != "lo" {sub(/@.*/, "", $2); print $2}' | while read -r dev; do
+    [ -n "$dev" ] && tc qdisc show dev "$dev" 2>/dev/null | head -n1 || true
+  done
+fi
 }
 
 enable_forwarding(){ #开启内核转发

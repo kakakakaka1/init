@@ -15,7 +15,7 @@ BACKUP_DIR="/root/ssh_backup_$(date +%Y%m%d_%H%M%S)"
 
 step1_install_packages() {
   echo "===== 步骤1：安装基础软件（含 curl + sudo） ====="
-  local pkgs="sudo curl vim wget telnet iperf3"
+  local pkgs="sudo curl vim wget telnet iperf3 iproute2"
 
   apt-get update -qq
   DEBIAN_FRONTEND=noninteractive apt-get install -y $pkgs
